@@ -1,0 +1,59 @@
+[workspace]
+members = ["."]
+# Note: dashboard is excluded from workspace as it targets wasm32
+exclude = ["dashboard"]
+
+[package]
+name = "git-bench"
+version = "0.1.0"
+edition = "2021"
+description = "A Rust implementation of github-action-benchmark for cargo benchmarks"
+license = "MIT"
+repository = "https://github.com/yourusername/git-bench"
+keywords = ["benchmark", "ci", "github-action", "performance"]
+categories = ["development-tools", "command-line-utilities"]
+
+[dependencies]
+# CLI argument parsing
+clap = { version = "4.4", features = ["derive", "env"] }
+
+# Serialization/Deserialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client for GitHub API
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Regex for parsing cargo bench output
+regex = "1.10"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Template engine for HTML generation
+minijinja = "1.0"
+
+# Git operations
+git2 = "0.18"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# URL handling
+url = "2.5"
+
+[dev-dependencies]
+tempfile = "3.9"
+pretty_assertions = "1.4"
+
+[[bin]]
+name = "git-bench"
+path = "src/main.rs"

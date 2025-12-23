@@ -1,0 +1,9 @@
+running 5 tests
+test bench_addition ... bench:          15 ns/iter (+/- 2)
+test bench_multiplication ... bench:          28 ns/iter (+/- 3)
+test bench_division ... bench:         142 ns/iter (+/- 12)
+test bench_fibonacci ... bench:       1,234 ns/iter (+/- 45)
+test bench_sorting ... bench:      12,456 ns/iter (+/- 890)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 5 measured; 0 filtered out
+

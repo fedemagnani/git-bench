@@ -1,0 +1,48 @@
+# Example GitHub Actions workflow for using git-bench
+name: Continuous Benchmarking
+
+on:
+  push:
+    branches: [main, master]
+  # Don't run on pull requests from forks for security
+  # pull_request:
+  #   branches: [main, master]
+
+permissions:
+  contents: write
+  deployments: write
+
+jobs:
+  benchmark:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Run benchmarks
+        run: cargo bench -- --noplot 2>&1 | tee benchmark-output.txt
+
+      - name: Install git-bench
+        run: cargo install --path .
+        # Or use: cargo install git-bench
+
+      - name: Store benchmark results
+        run: |
+          git-bench run \
+            --output-file benchmark-output.txt \
+            --name "Rust Benchmarks" \
+            --github-token "${{ secrets.GITHUB_TOKEN }}" \
+            --auto-push \
+            --comment-always \
+            --alert-threshold "150%" \
+            --fail-on-alert
+
+      - name: Upload benchmark data
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-data
+          path: benchmark-data.json
+
