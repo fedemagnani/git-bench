@@ -1,0 +1,356 @@
+//! Git operations for working with repositories
+
+use crate::error::{Error, Result};
+use chrono::{TimeZone, Utc};
+use git2::{BranchType, Repository};
+use git_bench_core::{AuthorInfo, CommitInfo};
+use std::path::Path;
+
+/// Get commit information from a local git repository
+pub fn get_commit_info(repo_path: &Path, commit_ref: Option<&str>) -> Result<CommitInfo> {
+    let repo = Repository::open(repo_path)?;
+
+    let commit = if let Some(ref_name) = commit_ref {
+        let obj = repo.revparse_single(ref_name)?;
+        obj.peel_to_commit()?
+    } else {
+        let head = repo.head()?;
+        head.peel_to_commit()?
+    };
+
+    let author = commit.author();
+    let timestamp = Utc
+        .timestamp_opt(commit.time().seconds(), 0)
+        .single()
+        .ok_or_else(|| Error::Git(git2::Error::from_str("Invalid timestamp")))?;
+
+    Ok(CommitInfo {
+        id: commit.id().to_string(),
+        message: commit
+            .message()
+            .unwrap_or("")
+            .lines()
+            .next()
+            .unwrap_or("")
+            .to_string(),
+        timestamp,
+        url: None,
+        author: Some(AuthorInfo {
+            name: author.name().unwrap_or("Unknown").to_string(),
+            email: author.email().map(|s| s.to_string()),
+            username: None,
+        }),
+    })
+}
+
+/// Check out a branch
+pub fn checkout_branch(repo_path: &Path, branch_name: &str) -> Result<()> {
+    let repo = Repository::open(repo_path)?;
+
+    let branch = repo
+        .find_branch(branch_name, BranchType::Local)
+        .or_else(|_| {
+            let remote_branch =
+                repo.find_branch(&format!("origin/{}", branch_name), BranchType::Remote)?;
+            let commit = remote_branch.get().peel_to_commit()?;
+            repo.branch(branch_name, &commit, false)
+        })?;
+
+    let ref_name = branch
+        .get()
+        .name()
+        .ok_or_else(|| Error::Git(git2::Error::from_str("Invalid branch reference")))?;
+
+    let obj = repo.revparse_single(ref_name)?;
+    repo.checkout_tree(&obj, None)?;
+    repo.set_head(ref_name)?;
+
+    Ok(())
+}
+
+/// Fetch from a remote
+pub fn fetch_remote(repo_path: &Path, remote_name: &str, branch: &str) -> Result<()> {
+    let repo = Repository::open(repo_path)?;
+    let mut remote = repo.find_remote(remote_name)?;
+
+    let refspec = format!(
+        "+refs/heads/{}:refs/remotes/{}/{}",
+        branch, remote_name, branch
+    );
+
+    remote.fetch(&[&refspec], None, None)?;
+
+    Ok(())
+}
+
+/// Recursively copy a directory
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
+    if !dst.exists() {
+        std::fs::create_dir_all(dst).map_err(|e| Error::FileWrite {
+            path: dst.display().to_string(),
+            source: e,
+        })?;
+    }
+
+    for entry in std::fs::read_dir(src).map_err(|e| Error::Other(format!("Failed to read dir: {}", e)))? {
+        let entry = entry.map_err(|e| Error::Other(format!("Failed to read entry: {}", e)))?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path).map_err(|e| Error::FileWrite {
+                path: dst_path.display().to_string(),
+                source: e,
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Configuration for GitHub Pages deployment
+pub struct GhPagesConfig<'a> {
+    pub branch: &'a str,
+    pub data_dir: &'a str,
+    pub remote: &'a str,
+    pub skip_fetch: bool,
+    pub dashboard_dir: Option<&'a Path>,
+}
+
+impl Default for GhPagesConfig<'_> {
+    fn default() -> Self {
+        Self {
+            branch: "gh-pages",
+            data_dir: "dev/bench",
+            remote: "origin",
+            skip_fetch: false,
+            dashboard_dir: None,
+        }
+    }
+}
+
+/// Deploy benchmark data to GitHub Pages branch
+pub fn deploy_to_gh_pages(
+    repo_path: &Path,
+    data_file_path: &Path,
+    config: &GhPagesConfig,
+) -> Result<String> {
+    let repo = Repository::open(repo_path)?;
+
+    let original_ref = repo
+        .head()?
+        .name()
+        .ok_or_else(|| Error::Git(git2::Error::from_str("Cannot get current branch")))?
+        .to_string();
+
+    // Check for uncommitted changes
+    let statuses = repo.statuses(None)?;
+    let has_changes = statuses.iter().any(|s| {
+        s.status().intersects(
+            git2::Status::WT_MODIFIED
+                | git2::Status::WT_NEW
+                | git2::Status::INDEX_MODIFIED
+                | git2::Status::INDEX_NEW,
+        )
+    });
+
+    if has_changes {
+        std::process::Command::new("git")
+            .args(["stash", "push", "-m", "git-bench: temporary stash"])
+            .current_dir(repo_path)
+            .output()
+            .map_err(|e| Error::Other(format!("Failed to stash changes: {}", e)))?;
+    }
+
+    // Fetch gh-pages branch
+    if !config.skip_fetch {
+        let _ = fetch_remote(repo_path, config.remote, config.branch);
+    }
+
+    // Check if branch exists
+    let branch_exists_locally = repo.find_branch(config.branch, BranchType::Local).is_ok();
+    let branch_exists_remote = repo
+        .find_branch(
+            &format!("{}/{}", config.remote, config.branch),
+            BranchType::Remote,
+        )
+        .is_ok();
+
+    if branch_exists_locally || branch_exists_remote {
+        checkout_branch(repo_path, config.branch)?;
+    } else {
+        create_orphan_branch(repo_path, config.branch)?;
+    }
+
+    // Create data directory
+    let data_dir = repo_path.join(config.data_dir);
+    std::fs::create_dir_all(&data_dir).map_err(|e| Error::FileWrite {
+        path: data_dir.display().to_string(),
+        source: e,
+    })?;
+
+    // Copy dashboard files if provided
+    if let Some(dashboard_src) = config.dashboard_dir {
+        if dashboard_src.exists() {
+            copy_dir_recursive(dashboard_src, &data_dir)?;
+        }
+    }
+
+    // Copy data file
+    let dest_file = data_dir.join("data.json");
+    std::fs::copy(data_file_path, &dest_file).map_err(|e| Error::FileWrite {
+        path: dest_file.display().to_string(),
+        source: e,
+    })?;
+
+    // Stage all files in data directory
+    let mut index = repo.index()?;
+    index.add_all([config.data_dir], git2::IndexAddOption::DEFAULT, None)?;
+    index.write()?;
+
+    let tree_id = index.write_tree()?;
+    let tree = repo.find_tree(tree_id)?;
+
+    let has_staged_changes = if let Ok(head) = repo.head() {
+        if let Ok(parent) = head.peel_to_commit() {
+            let parent_tree = parent.tree()?;
+            let diff = repo.diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)?;
+            diff.deltas().count() > 0
+        } else {
+            true
+        }
+    } else {
+        true
+    };
+
+    let commit_id = if has_staged_changes {
+        let sig = repo.signature().unwrap_or_else(|_| {
+            git2::Signature::now("git-bench", "git-bench@users.noreply.github.com").unwrap()
+        });
+
+        let parent_commit = repo.head().ok().and_then(|h| h.peel_to_commit().ok());
+        let parents: Vec<&git2::Commit> = parent_commit.iter().collect();
+
+        let commit_id = repo.commit(
+            Some("HEAD"),
+            &sig,
+            &sig,
+            "Update benchmark data [git-bench]",
+            &tree,
+            &parents,
+        )?;
+
+        Some(commit_id.to_string())
+    } else {
+        None
+    };
+
+    // Push
+    push_to_remote_with_auth(repo_path, config.remote, config.branch)?;
+
+    // Return to original branch
+    let obj = repo.revparse_single(&original_ref)?;
+    repo.checkout_tree(&obj, None)?;
+    repo.set_head(&original_ref)?;
+
+    // Restore stash
+    if has_changes {
+        std::process::Command::new("git")
+            .args(["stash", "pop"])
+            .current_dir(repo_path)
+            .output()
+            .ok();
+    }
+
+    Ok(commit_id.unwrap_or_else(|| "No changes".to_string()))
+}
+
+fn create_orphan_branch(repo_path: &Path, branch_name: &str) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(["checkout", "--orphan", branch_name])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| Error::Other(format!("Failed to create orphan branch: {}", e)))?;
+
+    if !output.status.success() {
+        return Err(Error::Other(format!(
+            "Failed to create orphan branch: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    let _ = std::process::Command::new("git")
+        .args(["rm", "-rf", "--cached", "."])
+        .current_dir(repo_path)
+        .output();
+
+    // Clean working directory except .git
+    if let Ok(entries) = std::fs::read_dir(repo_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.file_name().map(|n| n != ".git").unwrap_or(false) {
+                if path.is_dir() {
+                    let _ = std::fs::remove_dir_all(&path);
+                } else {
+                    let _ = std::fs::remove_file(&path);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn push_to_remote_with_auth(repo_path: &Path, remote_name: &str, branch: &str) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(["push", remote_name, branch, "--force"])
+        .current_dir(repo_path)
+        .output()
+        .map_err(|e| Error::Other(format!("Failed to push: {}", e)))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !stderr.contains("Everything up-to-date") {
+            return Err(Error::Other(format!(
+                "Failed to push to {}: {}",
+                branch, stderr
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn init_test_repo() -> TempDir {
+        let dir = TempDir::new().unwrap();
+        let repo = Repository::init(dir.path()).unwrap();
+
+        let sig = repo
+            .signature()
+            .unwrap_or_else(|_| git2::Signature::now("Test", "test@example.com").unwrap());
+
+        let tree_id = repo.index().unwrap().write_tree().unwrap();
+        let tree = repo.find_tree(tree_id).unwrap();
+
+        repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+            .unwrap();
+
+        dir
+    }
+
+    #[test]
+    fn test_get_commit_info() {
+        let dir = init_test_repo();
+        let info = get_commit_info(dir.path(), None).unwrap();
+        assert_eq!(info.message, "Initial commit");
+        assert!(!info.id.is_empty());
+    }
+}
+

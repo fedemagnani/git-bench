@@ -1,0 +1,172 @@
+{
+  "last_update": "2025-12-24T14:28:50.247703Z",
+  "entries": {
+    "example": [
+      {
+        "commit": {
+          "id": "c3ca23f6d791c8fb1b174f6cc7552f68e1f793c8",
+          "message": "Optimization pass 2",
+          "timestamp": "2025-12-23T14:18:17Z",
+          "author": {
+            "name": "fedemagnani",
+            "email": "0xdrun@gmail.com"
+          }
+        },
+        "date": "2025-12-24T14:16:23.800464Z",
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "fibonacci/recursive",
+            "value": 1065.1999999999998,
+            "unit": "ns",
+            "range": "[1054.5000 ns, 1076.9000 ns]",
+            "extra": {
+              "high": "1076.9000",
+              "low": "1054.5000"
+            }
+          },
+          {
+            "name": "fibonacci/iterative",
+            "value": 4.2836,
+            "unit": "ns",
+            "range": "[4.2312 ns, 4.3438 ns]",
+            "extra": {
+              "low": "4.2312",
+              "high": "4.3438"
+            }
+          },
+          {
+            "name": "sorting/bubble",
+            "value": 4352.7,
+            "unit": "ns",
+            "range": "[4304.5000 ns, 4408.4000 ns]",
+            "extra": {
+              "high": "4408.4000",
+              "low": "4304.5000"
+            }
+          },
+          {
+            "name": "sorting/quick",
+            "value": 353.46,
+            "unit": "ns",
+            "range": "[349.3000 ns, 358.4600 ns]",
+            "extra": {
+              "high": "358.4600",
+              "low": "349.3000"
+            }
+          }
+        ]
+      },
+      {
+        "commit": {
+          "id": "c3ca23f6d791c8fb1b174f6cc7552f68e1f793c8",
+          "message": "Optimization pass 2",
+          "timestamp": "2025-12-23T14:18:17Z",
+          "author": {
+            "name": "fedemagnani",
+            "email": "0xdrun@gmail.com"
+          }
+        },
+        "date": "2025-12-24T14:16:35.489730Z",
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "fibonacci/recursive",
+            "value": 1065.1999999999998,
+            "unit": "ns",
+            "range": "[1054.5000 ns, 1076.9000 ns]",
+            "extra": {
+              "high": "1076.9000",
+              "low": "1054.5000"
+            }
+          },
+          {
+            "name": "fibonacci/iterative",
+            "value": 4.2836,
+            "unit": "ns",
+            "range": "[4.2312 ns, 4.3438 ns]",
+            "extra": {
+              "low": "4.2312",
+              "high": "4.3438"
+            }
+          },
+          {
+            "name": "sorting/bubble",
+            "value": 4352.7,
+            "unit": "ns",
+            "range": "[4304.5000 ns, 4408.4000 ns]",
+            "extra": {
+              "low": "4304.5000",
+              "high": "4408.4000"
+            }
+          },
+          {
+            "name": "sorting/quick",
+            "value": 353.46,
+            "unit": "ns",
+            "range": "[349.3000 ns, 358.4600 ns]",
+            "extra": {
+              "low": "349.3000",
+              "high": "358.4600"
+            }
+          }
+        ]
+      },
+      {
+        "commit": {
+          "id": "c3ca23f6d791c8fb1b174f6cc7552f68e1f793c8",
+          "message": "Optimization pass 2",
+          "timestamp": "2025-12-23T14:18:17Z",
+          "author": {
+            "name": "fedemagnani",
+            "email": "0xdrun@gmail.com"
+          }
+        },
+        "date": "2025-12-24T14:28:50.247702Z",
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "fibonacci/recursive",
+            "value": 959.63,
+            "unit": "ns",
+            "range": "[956.4000 ns, 962.9700 ns]",
+            "extra": {
+              "low": "956.4000",
+              "high": "962.9700"
+            }
+          },
+          {
+            "name": "fibonacci/iterative",
+            "value": 3.9702,
+            "unit": "ns",
+            "range": "[3.9435 ns, 4.0021 ns]",
+            "extra": {
+              "low": "3.9435",
+              "high": "4.0021"
+            }
+          },
+          {
+            "name": "sorting/bubble",
+            "value": 4039.2999999999997,
+            "unit": "ns",
+            "range": "[4021.4000 ns, 4064.3000 ns]",
+            "extra": {
+              "low": "4021.4000",
+              "high": "4064.3000"
+            }
+          },
+          {
+            "name": "sorting/quick",
+            "value": 325.11,
+            "unit": "ns",
+            "range": "[323.2700 ns, 327.1000 ns]",
+            "extra": {
+              "low": "323.2700",
+              "high": "327.1000"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+[package]
+name = "git-bench-dashboard"
+version = "0.1.0"
+edition = "2021"
+description = "Dioxus WASM dashboard for git-bench (100% Rust)"
+
+[dependencies]
+# Shared types from core
+git-bench-core = { path = "../core" }
+
+# Dioxus framework
+dioxus = { version = "0.6", features = ["web"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Time handling (WASM compatible) - re-export from core
+chrono = { version = "0.4", default-features = false, features = [
+    "serde",
+    "wasmbind",
+    "std",
+] }
+
+# Web utilities
+gloo-net = "0.6"
+wasm-bindgen = "0.2"
+
+# Logging for WASM
+tracing = "0.1"
+tracing-wasm = "0.2"
+
+[[bin]]
+name = "git-bench-dashboard"
+path = "src/main.rs"
+
+[[bin]]
+name = "generate_html"
+path = "src/bin/generate_html.rs"
