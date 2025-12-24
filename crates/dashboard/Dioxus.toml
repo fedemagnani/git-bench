@@ -3,11 +3,11 @@ name = "git-bench-dashboard"
 default_platform = "web"
 
 [web.app]
-title = "Benchmark Dashboard"
+title = "git-bench Dashboard"
 
 [web.watcher]
 reload_html = true
-watch_path = ["src", "styles.css"]
+watch_path = ["src"]
 
 [web.resource]
 style = []

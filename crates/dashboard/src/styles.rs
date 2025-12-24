@@ -9,13 +9,15 @@
 /// Generate app style based on theme
 pub fn app_style(dark: bool) -> String {
     let (bg, fg) = if dark {
-        ("#1a1a1a", "#e0e0e0")
+        ("#0d1117", "#c9d1d9")
     } else {
         ("#ffffff", "#1a1a1a")
     };
     format!(
         "min-height: 100vh; \
-         font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; \
+         display: flex; \
+         flex-direction: column; \
+         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif; \
          font-size: 14px; \
          background: {bg}; \
          color: {fg}; \
@@ -25,29 +27,26 @@ pub fn app_style(dark: bool) -> String {
     )
 }
 
-/// Generate container style
-pub fn container_style(_dark: bool) -> &'static str {
-    "max-width: 960px; \
-     margin: 0 auto; \
-     padding: 1rem;"
-}
-
 /// Generate header style
 pub fn header_style(dark: bool) -> String {
-    let border = if dark { "#333" } else { "#ddd" };
+    let (bg, border) = if dark {
+        ("#161b22", "#30363d")
+    } else {
+        ("#f6f8fa", "#d0d7de")
+    };
     format!(
         "display: flex; \
          justify-content: space-between; \
          align-items: center; \
          padding: 0.75rem 1rem; \
-         border-bottom: 1px solid {border}; \
-         margin-bottom: 1rem;"
+         background: {bg}; \
+         border-bottom: 1px solid {border};"
     )
 }
 
 /// Generate title style
 pub fn title_style(_dark: bool) -> &'static str {
-    "font-size: 1rem; \
+    "font-size: 1.1rem; \
      font-weight: 600; \
      margin: 0;"
 }
@@ -55,144 +54,258 @@ pub fn title_style(_dark: bool) -> &'static str {
 /// Generate theme toggle button style
 pub fn toggle_btn_style(dark: bool) -> String {
     let (bg, fg, border) = if dark {
-        ("#333", "#e0e0e0", "#555")
+        ("#21262d", "#c9d1d9", "#30363d")
     } else {
-        ("#f5f5f5", "#1a1a1a", "#ccc")
+        ("#f6f8fa", "#1a1a1a", "#d0d7de")
     };
     format!(
         "background: {bg}; \
          color: {fg}; \
          border: 1px solid {border}; \
-         padding: 0.25rem 0.5rem; \
+         padding: 0.35rem 0.75rem; \
          font-family: inherit; \
          font-size: 0.8rem; \
+         border-radius: 6px; \
          cursor: pointer;"
     )
 }
 
-/// Generate section style (suite/module containers)
-pub fn section_style(dark: bool) -> String {
-    let border = if dark { "#333" } else { "#ddd" };
+/// Sidebar style
+pub fn sidebar_style(dark: bool) -> String {
+    let (bg, border) = if dark {
+        ("#161b22", "#30363d")
+    } else {
+        ("#f6f8fa", "#d0d7de")
+    };
     format!(
-        "border: 1px solid {border}; \
-         margin-bottom: 1rem;"
+        "width: 280px; \
+         min-width: 280px; \
+         background: {bg}; \
+         border-right: 1px solid {border}; \
+         display: flex; \
+         flex-direction: column; \
+         overflow: hidden;"
     )
 }
 
-/// Generate section header style
-pub fn section_header_style(dark: bool) -> String {
-    let (bg, border) = if dark {
-        ("#222", "#333")
+/// Search input style
+pub fn search_input_style(dark: bool) -> String {
+    let (bg, fg, border, placeholder) = if dark {
+        ("#0d1117", "#c9d1d9", "#30363d", "#6e7681")
     } else {
-        ("#f8f8f8", "#ddd")
+        ("#ffffff", "#1a1a1a", "#d0d7de", "#6e7681")
+    };
+    format!(
+        "width: 100%; \
+         box-sizing: border-box; \
+         padding: 0.5rem 0.75rem; \
+         background: {bg}; \
+         color: {fg}; \
+         border: 1px solid {border}; \
+         border-radius: 6px; \
+         font-family: inherit; \
+         font-size: 0.85rem; \
+         outline: none;"
+    )
+}
+
+/// Sidebar section header
+pub fn sidebar_section_header(dark: bool) -> String {
+    let border = if dark { "#30363d" } else { "#d0d7de" };
+    format!(
+        "padding: 0.5rem 0.75rem; \
+         font-weight: 600; \
+         font-size: 0.8rem; \
+         border-bottom: 1px solid {border};"
+    )
+}
+
+/// Commit item style
+pub fn commit_item_style(dark: bool, selected: bool) -> String {
+    let (bg, border) = if dark {
+        if selected { ("#1f2937", "#3b82f6") } else { ("transparent", "transparent") }
+    } else {
+        if selected { ("#eff6ff", "#3b82f6") } else { ("transparent", "transparent") }
     };
     format!(
         "display: flex; \
-         justify-content: space-between; \
          align-items: center; \
          padding: 0.5rem 0.75rem; \
+         border-left: 3px solid {border}; \
          background: {bg}; \
-         border-bottom: 1px solid {border}; \
-         cursor: pointer; \
-         user-select: none;"
+         cursor: default;"
     )
 }
 
-/// Generate section title style
-pub fn section_title_style(_dark: bool) -> &'static str {
-    "font-size: 0.9rem; \
-     font-weight: 600; \
-     margin: 0;"
+/// Commit indicator (left blue dot)
+pub fn commit_indicator_style(_dark: bool) -> &'static str {
+    "width: 6px; \
+     height: 6px; \
+     border-radius: 50%; \
+     background: #3b82f6; \
+     flex-shrink: 0;"
 }
 
-/// Generate badge style
-pub fn badge_style(dark: bool) -> String {
+/// Commit hash link style
+pub fn commit_hash_link_style(dark: bool) -> String {
+    let fg = if dark { "#58a6ff" } else { "#0969da" };
+    format!(
+        "font-family: 'SF Mono', 'Fira Code', monospace; \
+         font-size: 0.85rem; \
+         color: {fg}; \
+         text-decoration: none; \
+         font-weight: 500;"
+    )
+}
+
+/// Badge style for TO
+pub fn badge_compare_style(dark: bool) -> String {
     let (bg, fg) = if dark {
-        ("#333", "#888")
+        ("#30363d", "#8b949e")
     } else {
-        ("#eee", "#666")
+        ("#e1e4e8", "#57606a")
     };
     format!(
         "background: {bg}; \
          color: {fg}; \
          padding: 0.1rem 0.4rem; \
-         font-size: 0.75rem; \
-         margin-left: 0.5rem;"
+         border-radius: 4px; \
+         font-size: 0.6rem; \
+         font-weight: 500; \
+         text-transform: uppercase;"
     )
 }
 
-/// Generate expand button style
-pub fn expand_btn_style(dark: bool) -> String {
-    let fg = if dark { "#888" } else { "#666" };
-    format!(
-        "background: none; \
-         border: none; \
-         color: {fg}; \
-         font-size: 0.8rem; \
-         cursor: pointer; \
-         padding: 0.25rem;"
-    )
-}
-
-/// Generate module container style
-pub fn module_style(dark: bool) -> String {
-    let border = if dark { "#333" } else { "#ddd" };
-    format!(
-        "border: 1px solid {border}; \
-         margin: 0.5rem;"
-    )
-}
-
-/// Generate module header style
-pub fn module_header_style(dark: bool) -> String {
-    let (bg, border) = if dark {
-        ("#1a1a1a", "#333")
+/// Badge style for FROM
+pub fn badge_baseline_style(dark: bool) -> String {
+    let (bg, fg) = if dark {
+        ("#30363d", "#8b949e")
     } else {
-        ("#fafafa", "#ddd")
+        ("#e1e4e8", "#57606a")
     };
     format!(
-        "display: flex; \
-         justify-content: space-between; \
-         align-items: center; \
-         padding: 0.4rem 0.6rem; \
-         background: {bg}; \
-         border-bottom: 1px solid {border}; \
-         cursor: pointer;"
+        "background: {bg}; \
+         color: {fg}; \
+         padding: 0.1rem 0.4rem; \
+         border-radius: 4px; \
+         font-size: 0.6rem; \
+         font-weight: 500; \
+         text-transform: uppercase;"
     )
 }
 
-/// Generate module title style
-pub fn module_title_style(dark: bool) -> String {
-    let fg = if dark { "#a0a0ff" } else { "#4040a0" };
+/// Icon button style
+pub fn icon_btn_style(dark: bool, active: bool) -> String {
+    let (bg, fg) = if dark {
+        if active { ("#3b82f6", "#ffffff") } else { ("transparent", "#6e7681") }
+    } else {
+        if active { ("#3b82f6", "#ffffff") } else { ("transparent", "#6e7681") }
+    };
     format!(
-        "font-size: 0.85rem; \
+        "background: {bg}; \
+         color: {fg}; \
+         border: none; \
+         width: 24px; \
+         height: 24px; \
+         border-radius: 4px; \
+         cursor: pointer; \
+         font-size: 0.9rem; \
+         display: flex; \
+         align-items: center; \
+         justify-content: center;"
+    )
+}
+
+/// Main content area style
+pub fn main_content_style(dark: bool) -> String {
+    let bg = if dark { "#0d1117" } else { "#ffffff" };
+    format!(
+        "flex: 1; \
+         padding: 1.5rem 2rem; \
+         overflow-y: auto; \
+         background: {bg};"
+    )
+}
+
+/// Suite title style
+pub fn suite_title_style(dark: bool) -> String {
+    let fg = if dark { "#c9d1d9" } else { "#1a1a1a" };
+    format!(
+        "font-size: 1.5rem; \
          font-weight: 600; \
          color: {fg}; \
-         margin: 0;"
+         margin: 0 0 1rem 0;"
     )
 }
 
-/// Generate chart container style
-pub fn chart_style(dark: bool) -> String {
-    let border = if dark { "#333" } else { "#ddd" };
+/// Container card style (for grandparent grouping)
+pub fn container_card_style(dark: bool) -> String {
+    let (bg, border) = if dark {
+        ("#161b22", "#30363d")
+    } else {
+        ("#ffffff", "#d0d7de")
+    };
     format!(
-        "border: 1px solid {border}; \
-         margin: 0.5rem;"
+        "background: {bg}; \
+         border: 1px solid {border}; \
+         border-radius: 8px; \
+         margin-bottom: 1.5rem; \
+         overflow: hidden;"
+    )
+}
+
+/// Container header style
+pub fn container_header_style(dark: bool) -> String {
+    let (bg, border) = if dark {
+        ("#21262d", "#30363d")
+    } else {
+        ("#f6f8fa", "#d0d7de")
+    };
+    format!(
+        "padding: 0.75rem 1rem; \
+         background: {bg}; \
+         border-bottom: 1px solid {border};"
+    )
+}
+
+/// Container title style
+pub fn container_title_style(dark: bool) -> String {
+    let fg = if dark { "#c9d1d9" } else { "#1a1a1a" };
+    format!(
+        "font-size: 1rem; \
+         font-weight: 600; \
+         color: {fg};"
+    )
+}
+
+/// Chart card style
+pub fn chart_card_style(dark: bool) -> String {
+    let (bg, border) = if dark {
+        ("#161b22", "#30363d")
+    } else {
+        ("#ffffff", "#d0d7de")
+    };
+    format!(
+        "background: {bg}; \
+         border: 1px solid {border}; \
+         border-radius: 8px; \
+         margin-bottom: 1rem; \
+         overflow: hidden;"
     )
 }
 
 /// Generate chart header style
 pub fn chart_header_style(dark: bool) -> String {
     let (bg, border) = if dark {
-        ("#222", "#333")
+        ("#21262d", "#30363d")
     } else {
-        ("#f5f5f5", "#ddd")
+        ("#f6f8fa", "#d0d7de")
     };
     format!(
         "display: flex; \
+         justify-content: space-between; \
          align-items: center; \
-         gap: 0.5rem; \
-         padding: 0.3rem 0.6rem; \
+         padding: 0.75rem 1rem; \
          background: {bg}; \
          border-bottom: 1px solid {border};"
     )
@@ -200,120 +313,113 @@ pub fn chart_header_style(dark: bool) -> String {
 
 /// Generate chart title style
 pub fn chart_title_style(dark: bool) -> String {
-    let fg = if dark { "#80c0ff" } else { "#2060a0" };
+    let fg = if dark { "#c9d1d9" } else { "#1a1a1a" };
     format!(
-        "font-size: 0.8rem; \
+        "font-size: 1rem; \
          font-weight: 600; \
-         color: {fg}; \
-         margin: 0;"
+         color: {fg};"
     )
 }
 
 /// Generate unit badge style
 pub fn unit_badge_style(dark: bool) -> String {
-    let fg = if dark { "#666" } else { "#888" };
+    let fg = if dark { "#6e7681" } else { "#6e7681" };
     format!(
         "color: {fg}; \
-         font-size: 0.7rem;"
+         font-size: 0.8rem; \
+         font-weight: 400;"
     )
 }
 
-/// Generate chart legend style
-pub fn legend_style(dark: bool) -> String {
-    let border = if dark { "#333" } else { "#ddd" };
+/// Chart legend style
+pub fn chart_legend_style(dark: bool) -> String {
+    let border = if dark { "#30363d" } else { "#d0d7de" };
     format!(
         "display: flex; \
          flex-wrap: wrap; \
-         gap: 0.75rem; \
-         padding: 0.5rem; \
+         gap: 1.5rem; \
+         padding: 0.75rem 1rem; \
          border-top: 1px solid {border}; \
-         font-size: 0.75rem;"
+         font-size: 0.85rem;"
     )
 }
 
-/// Generate legend item style
-pub fn legend_item_style(_dark: bool) -> &'static str {
-    "display: flex; \
-     align-items: center; \
-     gap: 0.3rem;"
+/// Metrics section style
+pub fn metrics_section_style(dark: bool) -> String {
+    let border = if dark { "#30363d" } else { "#d0d7de" };
+    format!(
+        "padding: 0.75rem 1rem; \
+         border-top: 1px solid {border};"
+    )
 }
 
-/// Generate legend style for right-side vertical stacking
-pub fn legend_right_style(dark: bool) -> String {
-    let border = if dark { "#333" } else { "#ddd" };
+/// Metrics toggle button style
+pub fn metrics_toggle_style(dark: bool) -> String {
+    let fg = if dark { "#c9d1d9" } else { "#1a1a1a" };
+    format!(
+        "background: none; \
+         border: none; \
+         color: {fg}; \
+         font-size: 0.85rem; \
+         font-weight: 500; \
+         cursor: pointer; \
+         padding: 0; \
+         display: flex; \
+         align-items: center; \
+         gap: 0.4rem;"
+    )
+}
+
+/// Metrics table header style
+pub fn metrics_table_header_style(dark: bool) -> String {
+    let fg = if dark { "#6e7681" } else { "#6e7681" };
     format!(
         "display: flex; \
-         flex-direction: column; \
-         justify-content: center; \
-         gap: 0.4rem; \
-         padding: 0.5rem 0.75rem; \
-         border-left: 1px solid {border}; \
-         font-size: 0.7rem; \
-         min-width: 100px; \
-         max-width: 140px;"
-    )
-}
-
-/// Generate legend item style for vertical layout
-pub fn legend_item_vertical_style(_dark: bool) -> &'static str {
-    "display: flex; \
-     align-items: center; \
-     gap: 0.25rem; \
-     white-space: nowrap; \
-     overflow: hidden;"
-}
-
-/// Generate tooltip style (interactive - no pointer-events: none)
-pub fn tooltip_style(dark: bool) -> String {
-    let (bg, border) = if dark {
-        ("#2a2a2a", "#444")
-    } else {
-        ("#fff", "#ccc")
-    };
-    format!(
-        "position: absolute; \
-         background: {bg}; \
-         border: 1px solid {border}; \
-         padding: 0.5rem; \
+         padding: 0.5rem 0; \
          font-size: 0.75rem; \
-         z-index: 100; \
-         min-width: 180px; \
-         box-shadow: 0 2px 8px rgba(0,0,0,0.2);"
+         color: {fg}; \
+         font-weight: 500; \
+         text-transform: uppercase; \
+         letter-spacing: 0.5px;"
     )
 }
 
-/// Generate compact tooltip style for hover (smaller, less invasive)
-pub fn compact_tooltip_style(dark: bool) -> String {
+/// Metrics table row style
+pub fn metrics_table_row_style(dark: bool) -> String {
+    let border = if dark { "#21262d" } else { "#f6f8fa" };
+    format!(
+        "display: flex; \
+         padding: 0.6rem 0; \
+         font-size: 0.85rem; \
+         border-top: 1px solid {border}; \
+         align-items: center;"
+    )
+}
+
+/// Hover tooltip style (compact)
+pub fn hover_tooltip_style(dark: bool) -> String {
     let (bg, border) = if dark {
-        ("rgba(30, 30, 30, 0.95)", "#444")
+        ("rgba(22, 27, 34, 0.95)", "#30363d")
     } else {
-        ("rgba(255, 255, 255, 0.95)", "#ccc")
+        ("rgba(255, 255, 255, 0.95)", "#d0d7de")
     };
     format!(
         "position: absolute; \
          background: {bg}; \
          border: 1px solid {border}; \
-         padding: 0.3rem 0.4rem; \
-         font-size: 0.65rem; \
+         border-radius: 8px; \
+         padding: 0.6rem 0.8rem; \
+         font-size: 0.8rem; \
          z-index: 100; \
-         box-shadow: 0 1px 4px rgba(0,0,0,0.15);"
+         box-shadow: 0 4px 12px rgba(0,0,0,0.3); \
+         pointer-events: none;"
     )
 }
 
-/// Generate commit link style
-pub fn commit_link_style(dark: bool) -> String {
-    let fg = if dark { "#80c0ff" } else { "#2060a0" };
-    format!(
-        "color: {fg}; \
-         text-decoration: none; \
-         font-family: inherit;"
-    )
-}
-
-/// Generate commit link hover style
-pub fn commit_link_hover_style(dark: bool) -> String {
-    let fg = if dark { "#80c0ff" } else { "#2060a0" };
-    format!("color: {fg}; text-decoration: underline;")
+/// Generate muted text style
+pub fn muted_style(dark: bool) -> String {
+    let fg = if dark { "#6e7681" } else { "#6e7681" };
+    format!("color: {fg};")
 }
 
 /// Generate loading style
@@ -324,10 +430,11 @@ pub fn loading_style(_dark: bool) -> &'static str {
 
 /// Generate error style
 pub fn error_style(dark: bool) -> String {
-    let border = if dark { "#a04040" } else { "#d04040" };
+    let border = if dark { "#f85149" } else { "#cf222e" };
     format!(
         "padding: 1rem; \
          border: 1px solid {border}; \
+         border-radius: 8px; \
          margin: 1rem 0;"
     )
 }
@@ -339,103 +446,43 @@ pub fn empty_style(_dark: bool) -> &'static str {
      opacity: 0.7;"
 }
 
-/// Generate link style
-pub fn link_style(dark: bool) -> String {
-    let fg = if dark { "#80c0ff" } else { "#2060a0" };
-    format!("color: {fg};")
-}
-
-/// Generate muted text style
-pub fn muted_style(dark: bool) -> String {
-    let fg = if dark { "#666" } else { "#888" };
-    format!("color: {fg};")
-}
-
 /// Generate code/mono style
 pub fn code_style(dark: bool) -> String {
     let (bg, fg) = if dark {
-        ("#222", "#80ff80")
+        ("#21262d", "#79c0ff")
     } else {
-        ("#f5f5f5", "#208020")
+        ("#f6f8fa", "#0550ae")
     };
     format!(
         "background: {bg}; \
          color: {fg}; \
-         padding: 0.2rem 0.4rem; \
-         font-size: 0.85rem;"
+         padding: 0.2rem 0.5rem; \
+         border-radius: 4px; \
+         font-size: 0.85rem; \
+         font-family: 'SF Mono', 'Fira Code', monospace;"
     )
 }
 
 /// SVG grid line color
 pub fn grid_color(dark: bool) -> &'static str {
-    if dark { "#333" } else { "#ddd" }
+    if dark { "#21262d" } else { "#eaeef2" }
 }
 
 /// SVG axis label color
 pub fn axis_color(dark: bool) -> &'static str {
-    if dark { "#666" } else { "#888" }
+    if dark { "#6e7681" } else { "#6e7681" }
 }
 
-/// Chart line colors (work for both themes)
+/// Chart line colors
 pub const CHART_COLORS: [&str; 10] = [
-    "#4080ff", "#40c040", "#ff6060", "#a080ff", "#ff8000",
-    "#00c0c0", "#ff40ff", "#80c000", "#ff4080", "#4040ff",
+    "#3fb950", // green
+    "#58a6ff", // blue
+    "#f78166", // orange/red
+    "#a371f7", // purple
+    "#f9c513", // yellow
+    "#39d353", // bright green
+    "#79c0ff", // light blue
+    "#ff7b72", // red
+    "#d2a8ff", // light purple
+    "#ffa657", // orange
 ];
-
-/// Modal overlay style (fullscreen backdrop)
-pub fn modal_overlay_style(dark: bool) -> String {
-    let bg = if dark {
-        "rgba(0, 0, 0, 0.85)"
-    } else {
-        "rgba(0, 0, 0, 0.6)"
-    };
-    format!(
-        "position: fixed; \
-         top: 0; \
-         left: 0; \
-         right: 0; \
-         bottom: 0; \
-         background: {bg}; \
-         display: flex; \
-         justify-content: center; \
-         align-items: center; \
-         z-index: 1000; \
-         padding: 2rem;"
-    )
-}
-
-/// Modal content style
-pub fn modal_content_style(dark: bool) -> String {
-    let (bg, border) = if dark {
-        ("#1a1a1a", "#444")
-    } else {
-        ("#ffffff", "#ccc")
-    };
-    format!(
-        "background: {bg}; \
-         border: 1px solid {border}; \
-         padding: 1.5rem; \
-         max-width: 90vw; \
-         max-height: 90vh; \
-         overflow: auto; \
-         min-width: 600px;"
-    )
-}
-
-/// Close button style
-pub fn close_btn_style(dark: bool) -> String {
-    let (fg, hover_bg) = if dark {
-        ("#888", "#333")
-    } else {
-        ("#666", "#eee")
-    };
-    format!(
-        "background: none; \
-         border: none; \
-         color: {fg}; \
-         font-size: 1.2rem; \
-         cursor: pointer; \
-         padding: 0.25rem 0.5rem; \
-         line-height: 1;"
-    )
-}

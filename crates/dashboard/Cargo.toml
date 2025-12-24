@@ -9,7 +9,7 @@ description = "Dioxus WASM dashboard for git-bench (100% Rust)"
 git-bench-core = { path = "../core" }
 
 # Dioxus framework
-dioxus = { version = "0.6", features = ["web"] }
+dioxus = { version = "0.7", features = ["web"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -37,3 +37,7 @@ path = "src/main.rs"
 [[bin]]
 name = "generate_html"
 path = "src/bin/generate_html.rs"
+
+[[bin]]
+name = "test_data_generator"
+path = "src/bin/test_data_generator.rs"
