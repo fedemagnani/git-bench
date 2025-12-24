@@ -1,16 +1,20 @@
 # Example GitHub Actions workflow for using git-bench
+# 
+# To use git-bench in YOUR project, copy this workflow and update:
+#   1. The git-bench installation URL to point to this repo
+#   2. The benchmark command if you use Criterion or custom benches
+#
 name: Continuous Benchmarking
 
 on:
   push:
     branches: [main, master]
-  # Don't run on pull requests from forks for security
+  # Uncomment for PR benchmarks (careful with fork security)
   # pull_request:
   #   branches: [main, master]
 
 permissions:
   contents: write
-  deployments: write
 
 jobs:
   benchmark:
@@ -18,34 +22,58 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for gh-pages branch
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-action@stable
 
+      - name: Install WASM target (for dashboard)
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install git-bench from GitHub
+        run: |
+          # Install from GitHub with specific tag
+          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.1.0
+          # Or use latest from main branch:
+          # cargo install --git https://github.com/fedemagnani/git-bench
+          
+          # Install dioxus-cli for dashboard (optional)
+          cargo install dioxus-cli wasm-bindgen-cli
+
       - name: Run benchmarks
         run: cargo bench -- --noplot 2>&1 | tee benchmark-output.txt
 
-      - name: Install git-bench
-        run: cargo install --path .
-        # Or use: cargo install git-bench
+      - name: Build dashboard (optional)
+        run: |
+          # Clone git-bench to build dashboard
+          git clone --depth 1 --branch v0.1.0 https://github.com/fedemagnani/git-bench /tmp/git-bench
+          cd /tmp/git-bench/crates/dashboard && dx build --release
 
-      - name: Store benchmark results
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Store and deploy benchmark results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git-bench run \
             --output-file benchmark-output.txt \
             --name "Rust Benchmarks" \
-            --github-token "${{ secrets.GITHUB_TOKEN }}" \
+            --github-token "$GITHUB_TOKEN" \
             --auto-push \
-            --comment-always \
+            --gh-pages-branch gh-pages \
+            --benchmark-data-dir-path dev/bench \
+            --dashboard-dir /tmp/git-bench/crates/dashboard/dist \
+            --comment-on-alert \
             --alert-threshold "150%" \
             --fail-on-alert
 
-      - name: Upload benchmark data
+      - name: Upload benchmark data (artifact)
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: benchmark-data
           path: benchmark-data.json
-
-
-
-
