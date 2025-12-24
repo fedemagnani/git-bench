@@ -66,7 +66,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: dtolnay/rust-action@stable
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Setup
         run: |

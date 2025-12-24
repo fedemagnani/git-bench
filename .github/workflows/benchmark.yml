@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 0  # Needed for gh-pages branch
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install WASM target (for dashboard)
         run: rustup target add wasm32-unknown-unknown
