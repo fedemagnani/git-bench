@@ -13,8 +13,8 @@ Rust alternative to [github-action-benchmark](https://github.com/benchmark-actio
 ## Install
 
 ```bash
-# From GitHub
-cargo install --git https://github.com/fedemagnani/git-bench --tag v0.1.0
+# From GitHub (specify package name due to workspace)
+cargo install --git https://github.com/fedemagnani/git-bench --tag v0.1.0 git-bench
 
 # From source
 cargo install --path crates/cli
@@ -72,7 +72,7 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
           cargo install dioxus-cli wasm-bindgen-cli
-          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.1.0
+          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.1.0 git-bench
           git clone --depth 1 --branch v0.1.0 https://github.com/fedemagnani/git-bench /tmp/git-bench
           cd /tmp/git-bench/crates/dashboard && dx build --release
 

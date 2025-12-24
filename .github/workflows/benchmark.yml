@@ -34,9 +34,9 @@ jobs:
       - name: Install git-bench from GitHub
         run: |
           # Install from GitHub with specific tag
-          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.0.1-alpha.1
+          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.0.1-alpha.1 git-bench
           # Or use latest from main branch:
-          # cargo install --git https://github.com/fedemagnani/git-bench
+          # cargo install --git https://github.com/fedemagnani/git-bench git-bench
           
           # Install dioxus-cli for dashboard (optional)
           cargo install dioxus-cli wasm-bindgen-cli
