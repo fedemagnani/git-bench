@@ -34,7 +34,7 @@ jobs:
       - name: Install git-bench from GitHub
         run: |
           # Install from GitHub with specific tag
-          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.1.0
+          cargo install --git https://github.com/fedemagnani/git-bench --tag v0.0.1-alpha.1
           # Or use latest from main branch:
           # cargo install --git https://github.com/fedemagnani/git-bench
           
