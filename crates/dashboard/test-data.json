@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-12-24T16:49:18.098252Z",
+  "last_update": "2025-12-24T17:52:59.179825Z",
   "repo_url": "https://github.com/user/repo",
   "entries": {
     "mylib": [
@@ -7,7 +7,7 @@
         "commit": {
           "id": "hier1111",
           "message": "Initial deep hierarchy",
-          "timestamp": "2025-12-21T16:49:18.098122Z",
+          "timestamp": "2025-12-21T17:52:59.179682Z",
           "url": "https://github.com/user/repo/commit/hier1111",
           "author": {
             "name": "Test Author",
@@ -15,7 +15,7 @@
             "username": "testuser"
           }
         },
-        "date": "2025-12-21T16:49:18.098209Z",
+        "date": "2025-12-21T17:52:59.179779Z",
         "tool": "cargo",
         "benches": [
           {
@@ -78,7 +78,7 @@
         "commit": {
           "id": "hier2222",
           "message": "Optimize crypto",
-          "timestamp": "2025-12-22T16:49:18.098210Z",
+          "timestamp": "2025-12-22T17:52:59.179780Z",
           "url": "https://github.com/user/repo/commit/hier2222",
           "author": {
             "name": "Test Author",
@@ -86,7 +86,7 @@
             "username": "testuser"
           }
         },
-        "date": "2025-12-22T16:49:18.098221Z",
+        "date": "2025-12-22T17:52:59.179790Z",
         "tool": "cargo",
         "benches": [
           {
@@ -149,7 +149,7 @@
         "commit": {
           "id": "hier3333",
           "message": "Optimize IO",
-          "timestamp": "2025-12-23T16:49:18.098221Z",
+          "timestamp": "2025-12-23T17:52:59.179791Z",
           "url": "https://github.com/user/repo/commit/hier3333",
           "author": {
             "name": "Test Author",
@@ -157,7 +157,7 @@
             "username": "testuser"
           }
         },
-        "date": "2025-12-23T16:49:18.098231Z",
+        "date": "2025-12-23T17:52:59.179801Z",
         "tool": "cargo",
         "benches": [
           {

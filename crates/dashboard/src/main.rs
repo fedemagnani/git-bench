@@ -121,6 +121,8 @@ struct RunInfo {
     short_id: String,
     message: String,
     author: String,
+    /// GitHub username (if available)
+    author_username: Option<String>,
     /// Precise date/time string (YYYY-MM-DD HH:MM:SS)
     date: String,
     /// Raw timestamp for sorting
@@ -165,15 +167,19 @@ fn extract_runs(runs: &[BenchmarkRun]) -> Vec<RunInfo> {
     let mut run_infos: Vec<RunInfo> = runs.iter()
         .enumerate()
         .map(|(idx, run)| {
-            let author_name = run.commit.author.as_ref()
+            let author_info = run.commit.author.as_ref();
+            let author_name = author_info
                 .map(|a| a.name.clone())
                 .unwrap_or_else(|| "Unknown".to_string());
+            let author_username = author_info
+                .and_then(|a| a.username.clone());
             RunInfo {
                 run_idx: idx,
                 commit_id: run.commit.id.clone(),
                 short_id: run.commit.id[..7.min(run.commit.id.len())].to_string(),
                 message: run.commit.message.clone(),
                 author: author_name,
+                author_username,
                 date: run.date.format("%Y-%m-%d %H:%M:%S").to_string(),
                 timestamp: run.date.timestamp(),
             }
@@ -689,13 +695,14 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
         .map(|p| p.unit.clone())
         .unwrap_or_default();
 
+    let colors = chart_colors(dark);
     let color_map: HashMap<String, String> = test_names
         .iter()
         .enumerate()
         .map(|(idx, name)| {
             (
                 name.clone(),
-                CHART_COLORS[idx % CHART_COLORS.len()].to_string(),
+                colors[idx % colors.len()].to_string(),
             )
         })
         .collect();
@@ -758,13 +765,12 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
         .collect();
 
     // Get last run info for header
-    let last_run = runs_info.last();
-    let modified_info = last_run.map(|r| format!("Modified: {} by {}", r.date, r.author));
+    let last_run = runs_info.last().cloned();
 
     // Calculate metrics comparison (from vs to or latest vs previous)
     let from_selection = *from_idx.read();
     let to_selection = *to_idx.read();
-    let metrics_comparison = calculate_metrics_comparison(&data_points, &test_names, from_selection, to_selection);
+    let metrics_comparison = calculate_metrics_comparison(&data_points, &test_names, from_selection, to_selection, dark);
 
     // Map selection indices to chart positions
     // from_selection and to_selection are run_idx values, we need to find their commit_ids
@@ -785,11 +791,23 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
             // Chart header
             div { style: "{chart_header_style(dark)}",
                 div { style: "display: flex; align-items: center; gap: 0.5rem;",
-                span { style: "{chart_title_style(dark)}", "{name}" }
-                span { style: "{unit_badge_style(dark)}", "{unit}" }
+                    span { style: "{chart_title_style(dark)}", "{name}" }
+                    span { style: "{unit_badge_style(dark)}", "{unit}" }
                 }
-                if let Some(info) = &modified_info {
-                    span { style: "font-size: 0.75rem; {muted_style(dark)}", "{info}" }
+                if let Some(run) = &last_run {
+                    span { style: "font-size: 0.75rem; {muted_style(dark)}",
+                        "Modified: {run.date} by "
+                        if let Some(username) = &run.author_username {
+                            a {
+                                href: "https://github.com/{username}",
+                                target: "_blank",
+                                style: "{commit_hash_link_style(dark)}",
+                                "{run.author}"
+                            }
+                        } else {
+                            "{run.author}"
+                        }
+                    }
                 }
             }
 
@@ -809,9 +827,14 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
             // Legend
             div { style: "{chart_legend_style(dark)}",
                 for (idx, test_name) in test_names.iter().enumerate() {
-                    div { style: "display: flex; align-items: center; gap: 0.4rem;",
-                        span { style: "width: 12px; height: 12px; border-radius: 50%; background: {CHART_COLORS[idx % CHART_COLORS.len()]};" }
-                        span { "{test_name}" }
+                    {
+                        let legend_color = colors[idx % colors.len()];
+                        rsx! {
+                            div { style: "display: flex; align-items: center; gap: 0.4rem;",
+                                span { style: "width: 12px; height: 12px; border-radius: 50%; background: {legend_color};" }
+                                span { "{test_name}" }
+                            }
+                        }
                     }
                 }
             }
@@ -841,27 +864,32 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
                             
                             // Table rows
                             for (test_name, from_value, to_value, change_pct, color) in metrics_comparison.iter() {
-                                div { style: "{metrics_table_row_style(dark)}",
-                                    div { style: "flex: 2; display: flex; align-items: center; gap: 0.4rem;",
-                                        span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
-                                        span { "{test_name}" }
-                                    }
-                                    span { 
-                                        style: "flex: 1; text-align: right; {muted_style(dark)}",
-                                        {
-                                            match from_value {
-                                                Some(v) => format!("{:.2}", v),
-                                                None => "—".to_string(),
+                                {
+                                    let pct_color = change_color(dark, *change_pct);
+                                    rsx! {
+                                        div { style: "{metrics_table_row_style(dark)}",
+                                            div { style: "flex: 2; display: flex; align-items: center; gap: 0.4rem;",
+                                                span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
+                                                span { "{test_name}" }
+                                            }
+                                            span { 
+                                                style: "flex: 1; text-align: right; {muted_style(dark)}",
+                                                {
+                                                    match from_value {
+                                                        Some(v) => format!("{:.2}", v),
+                                                        None => "—".to_string(),
+                                                    }
+                                                }
+                                            }
+                                            span { 
+                                                style: "flex: 1; text-align: right;",
+                                                "{to_value:.2}"
+                                            }
+                                            span { 
+                                                style: "flex: 1; text-align: right; font-weight: 500; color: {pct_color};",
+                                                "{format_change(*change_pct)}"
                                             }
                                         }
-                                    }
-                                    span { 
-                                        style: "flex: 1; text-align: right;",
-                                        "{to_value:.2}"
-                                    }
-                                    span { 
-                                        style: "flex: 1; text-align: right; font-weight: 500; color: {change_color(*change_pct)};",
-                                        "{format_change(*change_pct)}"
                                     }
                                 }
                             }
@@ -879,7 +907,9 @@ fn calculate_metrics_comparison(
     test_names: &[String],
     from_idx: Option<usize>,
     to_idx: Option<usize>,
+    dark: bool,
 ) -> Vec<(String, Option<f64>, f64, f64, String)> {
+    let colors = chart_colors(dark);
     let mut result = Vec::new();
     
     for (idx, test_name) in test_names.iter().enumerate() {
@@ -916,7 +946,7 @@ fn calculate_metrics_comparison(
                 Some(from_val) if from_val != 0.0 => ((to_val - from_val) / from_val) * 100.0,
                 _ => 0.0,
             };
-            let color = CHART_COLORS[idx % CHART_COLORS.len()].to_string();
+            let color = colors[idx % colors.len()].to_string();
             result.push((test_name.clone(), from_value, to_val, change_pct, color));
         }
     }
@@ -924,15 +954,7 @@ fn calculate_metrics_comparison(
     result
 }
 
-fn change_color(change_pct: f64) -> &'static str {
-    if change_pct > 5.0 {
-        "#ff6b6b"  // Red for regression
-    } else if change_pct < -5.0 {
-        "#51cf66"  // Green for improvement
-    } else {
-        "#868e96"  // Gray for neutral
-    }
-}
+// change_color is now in styles.rs as change_color(dark, change_pct)
 
 fn format_change(change_pct: f64) -> String {
     if change_pct >= 0.0 {
@@ -957,6 +979,7 @@ fn ChartSvg(
 ) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
     let dark = *dark_mode.read();
+    let colors = chart_colors(dark);
 
     let padding_left = 50.0;
     let padding_right = 20.0;
@@ -1069,7 +1092,7 @@ fn ChartSvg(
                 for (idx, (test_name, points)) in series.iter().enumerate() {
                     if !points.is_empty() {
                         {
-                            let color = CHART_COLORS[idx % CHART_COLORS.len()];
+                            let color = colors[idx % colors.len()];
                             let path = generate_line_path_v2(points, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
                             rsx! {
                                 path {
@@ -1107,12 +1130,12 @@ fn ChartSvg(
                     if from_pos < num_commits {
                         {
                             let x = padding_left + (chart_width - padding_left - padding_right) * (from_pos as f64 / (num_commits.max(1) - 1).max(1) as f64);
-                            let marker_color = "#74c0fc";  // Soft blue for both markers
+                            let m_color = marker_color(dark);
                             rsx! {
                                 line {
                                     x1: "{x}", y1: "{padding_top}", x2: "{x}", y2: "{chart_height - padding_bottom}",
-                                    stroke: "{marker_color}", "stroke-width": "1.5", opacity: "0.5",
-                                    "stroke-dasharray": "4,3",
+                                    stroke: "{m_color}", "stroke-width": "1", opacity: "0.4",
+                                    "stroke-dasharray": "3,3",
                                     style: "pointer-events: none;"
                                 }
                             }
@@ -1125,12 +1148,12 @@ fn ChartSvg(
                     if to_pos < num_commits {
                         {
                             let x = padding_left + (chart_width - padding_left - padding_right) * (to_pos as f64 / (num_commits.max(1) - 1).max(1) as f64);
-                            let marker_color = "#74c0fc";  // Soft blue for both markers
+                            let m_color = marker_color(dark);
                             rsx! {
                                 line {
                                     x1: "{x}", y1: "{padding_top}", x2: "{x}", y2: "{chart_height - padding_bottom}",
-                                    stroke: "{marker_color}", "stroke-width": "1.5", opacity: "0.5",
-                                    "stroke-dasharray": "4,3",
+                                    stroke: "{m_color}", "stroke-width": "1", opacity: "0.4",
+                                    "stroke-dasharray": "3,3",
                                     style: "pointer-events: none;"
                                 }
                             }
@@ -1143,10 +1166,11 @@ fn ChartSvg(
                     if idx < num_commits {
                         {
                             let x = padding_left + (chart_width - padding_left - padding_right) * (idx as f64 / (num_commits.max(1) - 1).max(1) as f64);
+                            let h_color = hover_color(dark);
                             rsx! {
                                 line {
                                     x1: "{x}", y1: "{padding_top}", x2: "{x}", y2: "{chart_height - padding_bottom}",
-                                    stroke: "#4080ff", "stroke-width": "2", "stroke-dasharray": "4,4", opacity: "0.8",
+                                    stroke: "{h_color}", "stroke-width": "1", opacity: "0.6",
                                     style: "pointer-events: none;"
                                 }
                             }
