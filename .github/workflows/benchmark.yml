@@ -47,7 +47,7 @@ jobs:
       - name: Build dashboard (optional)
         run: |
           # Clone git-bench to build dashboard
-          git clone --depth 1 --branch v0.1.0 https://github.com/fedemagnani/git-bench /tmp/git-bench
+          git clone --depth 1 --branch v0.0.1-alpha.1 https://github.com/fedemagnani/git-bench /tmp/git-bench
           cd /tmp/git-bench/crates/dashboard && dx build --release
 
       - name: Configure Git
