@@ -32,7 +32,7 @@ jobs:
           cd crates/dashboard && dx build --release
           cp -r target/dx/git-bench-dashboard/release/web/public ../../dist
           # Fix absolute paths for GitHub Pages subdirectory deployment
-          sed -i 's|"/\./|"./|g' ../../dist/index.html
+          find ../../dist -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i 's|"/\./|"./|g' {} \;
 
       - name: Run benchmarks
         run: cargo bench 2>&1 | tee benchmark-output.txt
