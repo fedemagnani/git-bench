@@ -1,0 +1,25 @@
+[package]
+name = "git-bench-core"
+version = "0.1.0"
+edition = "2021"
+description = "Core types and parsing for git-bench (WASM-compatible)"
+license = "MIT"
+
+[dependencies]
+# Serialization (WASM-compatible)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Regex for parsing (WASM-compatible)
+regex = "1.10"
+
+# Time handling (WASM-compatible)
+chrono = { version = "0.4", default-features = false, features = [
+    "serde",
+    "std",
+    "wasmbind",
+    "clock",
+] }
+
+# Error handling (WASM-compatible)
+thiserror = "1.0"

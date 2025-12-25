@@ -1,0 +1,48 @@
+[package]
+name = "git-bench"
+version = "0.1.0"
+edition = "2021"
+description = "Continuous benchmarking for cargo - A Rust CLI for tracking benchmark performance"
+license = "MIT"
+repository = "https://github.com/yourusername/git-bench"
+keywords = ["benchmark", "ci", "github-action", "performance"]
+categories = ["development-tools", "command-line-utilities"]
+
+[dependencies]
+# Core shared types
+git-bench-core = { path = "../core" }
+
+# CLI argument parsing
+clap = { version = "4.4", features = ["derive", "env"] }
+
+# Serialization (re-export from core for convenience)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client for GitHub API (native only)
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Git operations (native only)
+git2 = "0.18"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# URL handling
+url = "2.5"
+
+[dev-dependencies]
+tempfile = "3.9"
+
+[[bin]]
+name = "git-bench"
+path = "src/main.rs"
+

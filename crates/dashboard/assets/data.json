@@ -1,0 +1,112 @@
+{
+  "last_update": "2025-12-25T00:48:26.838228Z",
+  "entries": {
+    "git-bench": [
+      {
+        "commit": {
+          "id": "a558136e81c9658b5b4513927e7876920cb250e2",
+          "message": "dogfooding",
+          "timestamp": "2025-12-25T00:30:54Z",
+          "author": {
+            "name": "fedemagnani",
+            "email": "0xdrun@gmail.com"
+          }
+        },
+        "date": "2025-12-25T00:48:26.838206Z",
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "arithmetic::sum_1000",
+            "value": 0.79218,
+            "unit": "ns",
+            "range": "[0.7916 ns, 0.7928 ns]",
+            "extra": {
+              "high": "0.7928",
+              "low": "0.7916"
+            }
+          },
+          {
+            "name": "arithmetic::sum_10000",
+            "value": 0.79837,
+            "unit": "ns",
+            "range": "[0.7951 ns, 0.8018 ns]",
+            "extra": {
+              "low": "0.7951",
+              "high": "0.8018"
+            }
+          },
+          {
+            "name": "arithmetic::product_10",
+            "value": 1.4074,
+            "unit": "ns",
+            "range": "[1.4031 ns, 1.4126 ns]",
+            "extra": {
+              "low": "1.4031",
+              "high": "1.4126"
+            }
+          },
+          {
+            "name": "arithmetic::product_15",
+            "value": 2.124,
+            "unit": "ns",
+            "range": "[2.1185 ns, 2.1302 ns]",
+            "extra": {
+              "low": "2.1185",
+              "high": "2.1302"
+            }
+          },
+          {
+            "name": "fibonacci::fib_10",
+            "value": 80.813,
+            "unit": "ns",
+            "range": "[80.6130 ns, 81.0240 ns]",
+            "extra": {
+              "low": "80.6130",
+              "high": "81.0240"
+            }
+          },
+          {
+            "name": "fibonacci::fib_15",
+            "value": 946.41,
+            "unit": "ns",
+            "range": "[943.9400 ns, 948.9600 ns]",
+            "extra": {
+              "low": "943.9400",
+              "high": "948.9600"
+            }
+          },
+          {
+            "name": "fibonacci::fib_20",
+            "value": 10717.0,
+            "unit": "ns",
+            "range": "[10689.0000 ns, 10745.0000 ns]",
+            "extra": {
+              "high": "10745.0000",
+              "low": "10689.0000"
+            }
+          },
+          {
+            "name": "sorting::sort_100",
+            "value": 36.471,
+            "unit": "ns",
+            "range": "[36.2660 ns, 36.6790 ns]",
+            "extra": {
+              "low": "36.2660",
+              "high": "36.6790"
+            }
+          },
+          {
+            "name": "sorting::sort_1000",
+            "value": 348.04,
+            "unit": "ns",
+            "range": "[344.5900 ns, 351.3000 ns]",
+            "extra": {
+              "low": "344.5900",
+              "high": "351.3000"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
