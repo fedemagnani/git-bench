@@ -21,6 +21,8 @@ build:
 	cd crates/dashboard && dx build --release
 	rm -rf dist
 	cp -r crates/dashboard/target/dx/git-bench-dashboard/release/web/public dist
+	# Fix absolute paths for GitHub Pages subdirectory deployment
+	sed -i.bak 's|"/\./|"./|g' dist/index.html && rm -f dist/index.html.bak
 	cp benchmark-data.json dist/data.json
 
 # Development: dx serve with data

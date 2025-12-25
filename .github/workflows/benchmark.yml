@@ -31,6 +31,8 @@ jobs:
         run: |
           cd crates/dashboard && dx build --release
           cp -r target/dx/git-bench-dashboard/release/web/public ../../dist
+          # Fix absolute paths for GitHub Pages subdirectory deployment
+          sed -i 's|"/\./|"./|g' ../../dist/index.html
 
       - name: Run benchmarks
         run: cargo bench 2>&1 | tee benchmark-output.txt
@@ -51,7 +53,7 @@ jobs:
             --github-token "$GITHUB_TOKEN" \
             --auto-push \
             --gh-pages-branch gh-pages \
-            --benchmark-data-dir-path . \
+            --benchmark-data-dir-path dev/bench \
             --dashboard-dir dist \
             --alert-threshold "150%"
 
