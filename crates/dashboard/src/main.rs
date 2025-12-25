@@ -14,8 +14,9 @@
 
 use dioxus::prelude::*;
 use git_bench_core::{BenchmarkData, BenchmarkRun};
-use gloo_net::http::Request;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::JsFuture;
 
 mod styles;
 
@@ -28,13 +29,11 @@ struct ThemeCtx(Signal<bool>);
 /// Global selection context for from/to commit comparison
 #[derive(Clone, Copy)]
 struct SelectionCtx {
-    from_idx: Signal<Option<usize>>,  // run index (older/start)
-    to_idx: Signal<Option<usize>>,    // run index (newer/end)
+    from_idx: Signal<Option<usize>>, // run index (older/start)
+    to_idx: Signal<Option<usize>>,   // run index (newer/end)
 }
 
 /// Global GitHub repo URL context
-#[derive(Clone)]
-struct RepoCtx(Signal<Option<String>>);
 
 const DATA_URL: &str = "data.json";
 
@@ -59,7 +58,7 @@ impl BenchmarkPath {
         } else {
             name.split('/').collect()
         };
-        
+
         match parts.len() {
             1 => BenchmarkPath {
                 grandparent: None,
@@ -123,6 +122,8 @@ struct RunInfo {
     author: String,
     /// GitHub username (if available)
     author_username: Option<String>,
+    /// Commit URL (if available)
+    commit_url: Option<String>,
     /// Precise date/time string (YYYY-MM-DD HH:MM:SS)
     date: String,
     /// Raw timestamp for sorting
@@ -164,15 +165,15 @@ fn build_hierarchy(runs: &[BenchmarkRun]) -> HierarchicalData {
 
 /// Extract all runs (each benchmark execution) sorted by date descending (newest first)
 fn extract_runs(runs: &[BenchmarkRun]) -> Vec<RunInfo> {
-    let mut run_infos: Vec<RunInfo> = runs.iter()
+    let mut run_infos: Vec<RunInfo> = runs
+        .iter()
         .enumerate()
         .map(|(idx, run)| {
             let author_info = run.commit.author.as_ref();
             let author_name = author_info
                 .map(|a| a.name.clone())
                 .unwrap_or_else(|| "Unknown".to_string());
-            let author_username = author_info
-                .and_then(|a| a.username.clone());
+            let author_username = author_info.and_then(|a| a.username.clone());
             RunInfo {
                 run_idx: idx,
                 commit_id: run.commit.id.clone(),
@@ -180,12 +181,13 @@ fn extract_runs(runs: &[BenchmarkRun]) -> Vec<RunInfo> {
                 message: run.commit.message.clone(),
                 author: author_name,
                 author_username,
+                commit_url: run.commit.url.clone(),
                 date: run.date.format("%Y-%m-%d %H:%M:%S").to_string(),
                 timestamp: run.date.timestamp(),
             }
         })
         .collect();
-    
+
     // Sort by timestamp descending (newest first)
     run_infos.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
     run_infos
@@ -201,16 +203,12 @@ fn App() -> Element {
     // Theme state - default to dark mode
     let dark_mode = use_signal(|| true);
     use_context_provider(|| ThemeCtx(dark_mode));
-    
+
     // Selection state for from/to (indices into runs list)
     // Will be initialized with defaults when data loads
     let from_idx = use_signal(|| None::<usize>);
     let to_idx = use_signal(|| None::<usize>);
     use_context_provider(|| SelectionCtx { from_idx, to_idx });
-    
-    // GitHub repo URL (can be configured)
-    let repo_url = use_signal(|| Some("https://github.com/user/repo".to_string()));
-    use_context_provider(|| RepoCtx(repo_url));
 
     let mut data = use_signal(|| None::<BenchmarkData>);
     let mut error = use_signal(|| None::<String>);
@@ -236,7 +234,7 @@ fn App() -> Element {
 
     rsx! {
         // Global style to fix html/body background
-        style { 
+        style {
             "html, body {{ margin: 0; padding: 0; background: {body_bg}; min-height: 100vh; }} \
              #main {{ min-height: 100vh; }}"
         }
@@ -330,16 +328,20 @@ fn EmptyState() -> Element {
 #[component]
 fn Dashboard(data: BenchmarkData) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
-    let SelectionCtx { mut from_idx, mut to_idx } = use_context::<SelectionCtx>();
+    let SelectionCtx {
+        mut from_idx,
+        mut to_idx,
+    } = use_context::<SelectionCtx>();
     let dark = *dark_mode.read();
-    
+
     // Extract all runs from all suites (use first suite for sidebar)
-    let first_suite_runs: Vec<RunInfo> = data.entries
+    let first_suite_runs: Vec<RunInfo> = data
+        .entries
         .values()
         .next()
         .map(|runs| extract_runs(runs))
         .unwrap_or_default();
-    
+
     // Set default from/to if not set (only once)
     // Runs are sorted newest-first, so:
     //   - to = first item's run_idx (newest/latest)
@@ -347,12 +349,12 @@ fn Dashboard(data: BenchmarkData) -> Element {
     // Note: run_idx is the original order index, not sorted position
     let to_default = first_suite_runs.first().map(|r| r.run_idx);
     let from_default = first_suite_runs.get(1).map(|r| r.run_idx);
-    
+
     use_effect(move || {
         // Read both values first to avoid partial updates
         let from_is_none = from_idx.read().is_none();
         let to_is_none = to_idx.read().is_none();
-        
+
         if let (Some(from_val), Some(to_val)) = (from_default, to_default) {
             if from_is_none && to_is_none {
                 from_idx.set(Some(from_val));
@@ -368,7 +370,7 @@ fn Dashboard(data: BenchmarkData) -> Element {
     rsx! {
         // Left sidebar with runs
         RunsSidebar { runs: first_suite_runs.clone() }
-        
+
         // Main content area
         main { style: "{main_content_style(dark)}",
             for (suite_name, runs) in data.entries.iter() {
@@ -386,17 +388,18 @@ fn Dashboard(data: BenchmarkData) -> Element {
 #[component]
 fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
-    let SelectionCtx { mut from_idx, mut to_idx } = use_context::<SelectionCtx>();
-    let RepoCtx(repo_url) = use_context::<RepoCtx>();
+    let SelectionCtx {
+        mut from_idx,
+        mut to_idx,
+    } = use_context::<SelectionCtx>();
     let dark = *dark_mode.read();
 
     let mut search_query = use_signal(|| String::new());
-    
+
     // Build a map from run_idx to timestamp for constraint checking
-    let timestamp_map: HashMap<usize, i64> = runs.iter()
-        .map(|r| (r.run_idx, r.timestamp))
-        .collect();
-    
+    let timestamp_map: HashMap<usize, i64> =
+        runs.iter().map(|r| (r.run_idx, r.timestamp)).collect();
+
     let filtered_runs: Vec<&RunInfo> = runs
         .iter()
         .filter(|r| {
@@ -404,7 +407,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
             if query.is_empty() {
                 return true;
             }
-            r.commit_id.to_lowercase().contains(&query) 
+            r.commit_id.to_lowercase().contains(&query)
                 || r.message.to_lowercase().contains(&query)
                 || r.author.to_lowercase().contains(&query)
         })
@@ -422,12 +425,12 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                     oninput: move |e| search_query.set(e.value())
                 }
             }
-            
+
             // Runs header
             div { style: "{sidebar_section_header(dark)}",
                 span { "Commits" }
             }
-            
+
             // Help text
             div { style: "padding: 0.5rem 0.75rem; font-size: 0.7rem; {muted_style(dark)}",
                 "Click "
@@ -436,7 +439,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                 span { style: "opacity: 0.7;", "⇌" }
                 " to set TO"
             }
-            
+
             // Runs list
             div { style: "flex: 1; overflow-y: auto;",
                 for run in filtered_runs {
@@ -445,21 +448,20 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                         let run_timestamp = run.timestamp;
                         let is_from = *from_idx.read() == Some(run_idx);
                         let is_to = *to_idx.read() == Some(run_idx);
-                        let repo = repo_url.read().clone();
-                        let commit_url = repo.map(|r| format!("{}/commit/{}", r, run.commit_id.clone()));
+                        let commit_url = run.commit_url.clone();
                         let ts_map = timestamp_map.clone();
                         let ts_map2 = timestamp_map.clone();
-                        
+
                         rsx! {
                             div {
                                 key: "run-{run_idx}",
                                 style: "{commit_item_style(dark, is_from || is_to)}",
-                                
+
                                 // Left indicator
                                 if is_from || is_to {
                                     div { style: "{commit_indicator_style(dark)}" }
                                 }
-                                
+
                                 // Run info
                                 div { style: "flex: 1; min-width: 0; padding-left: 0.5rem;",
                                     div { style: "display: flex; align-items: center; gap: 0.5rem;",
@@ -474,7 +476,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                                         } else {
                                             span { style: "font-family: monospace; font-size: 0.8rem;", "{run.short_id}" }
                                         }
-                                        
+
                                         // Badges
                                         if is_to {
                                             span { style: "{badge_compare_style(dark)}", "TO" }
@@ -487,7 +489,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                                         "{run.date}"
                                     }
                                 }
-                                
+
                                 // Action buttons
                                 div { style: "display: flex; gap: 0.25rem;",
                                     button {
@@ -496,7 +498,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                 onclick: move |_| {
                                             let current_from = *from_idx.read();
                                             let current_to = *to_idx.read();
-                                            
+
                                             if current_from == Some(run_idx) {
                                                 from_idx.set(None);
                                             } else {
@@ -521,7 +523,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                                         onclick: move |_| {
                                             let current_from = *from_idx.read();
                                             let current_to = *to_idx.read();
-                                            
+
                                             if current_to == Some(run_idx) {
                                                 to_idx.set(None);
                                             } else {
@@ -561,7 +563,9 @@ fn SuiteSection(suite_name: String, runs: Vec<BenchmarkRun>) -> Element {
 
     // Determine if we have hierarchical benchmarks
     let has_hierarchy = hierarchy.keys().any(|k| k != "_ungrouped")
-        || hierarchy.get("_ungrouped").map_or(false, |m| m.keys().any(|k| k != "_ungrouped"));
+        || hierarchy
+            .get("_ungrouped")
+            .map_or(false, |m| m.keys().any(|k| k != "_ungrouped"));
 
     rsx! {
         div { style: "margin-bottom: 2rem;",
@@ -670,7 +674,11 @@ struct CommitTooltipData {
 
 /// Main benchmark chart component
 #[component]
-fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info: Vec<RunInfo>) -> Element {
+fn BenchmarkChart(
+    name: String,
+    data_points: Vec<BenchmarkDataPoint>,
+    runs_info: Vec<RunInfo>,
+) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
     let SelectionCtx { from_idx, to_idx } = use_context::<SelectionCtx>();
     let dark = *dark_mode.read();
@@ -699,12 +707,7 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
     let color_map: HashMap<String, String> = test_names
         .iter()
         .enumerate()
-        .map(|(idx, name)| {
-            (
-                name.clone(),
-                colors[idx % colors.len()].to_string(),
-            )
-        })
+        .map(|(idx, name)| (name.clone(), colors[idx % colors.len()].to_string()))
         .collect();
 
     let max_value = series
@@ -726,39 +729,48 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
             })
             .collect()
     };
-    
+
     let num_commits = chart_commits.len();
 
     // Build tooltip data for each commit position
     let mut points_by_test: BTreeMap<String, Vec<&BenchmarkDataPoint>> = BTreeMap::new();
     for point in &data_points {
-        points_by_test.entry(point.test_name.clone()).or_default().push(point);
+        points_by_test
+            .entry(point.test_name.clone())
+            .or_default()
+            .push(point);
     }
-    
+
     let num_points = series.values().next().map_or(0, |v| v.len());
     let commits_tooltip: Vec<CommitTooltipData> = (0..num_points)
         .map(|idx| {
-            let reference_point = points_by_test.values().next()
+            let reference_point = points_by_test
+                .values()
+                .next()
                 .and_then(|pts| pts.get(idx))
                 .expect("should have data point");
-            
+
             let values: Vec<(String, f64, String, String)> = test_names
                 .iter()
                 .filter_map(|test_name| {
-                    points_by_test.get(test_name)
+                    points_by_test
+                        .get(test_name)
                         .and_then(|pts| pts.get(idx))
-                        .map(|p| (
-                            p.test_name.clone(),
-                            p.value,
-                            p.unit.clone(),
-                            color_map.get(&p.test_name).cloned().unwrap_or_default(),
-                        ))
+                        .map(|p| {
+                            (
+                                p.test_name.clone(),
+                                p.value,
+                                p.unit.clone(),
+                                color_map.get(&p.test_name).cloned().unwrap_or_default(),
+                            )
+                        })
                 })
                 .collect();
-            
+
             CommitTooltipData {
                 commit_id: reference_point.commit_id.clone(),
-                commit_short: reference_point.commit_id[..7.min(reference_point.commit_id.len())].to_string(),
+                commit_short: reference_point.commit_id[..7.min(reference_point.commit_id.len())]
+                    .to_string(),
                 values,
             }
         })
@@ -770,18 +782,26 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
     // Calculate metrics comparison (from vs to or latest vs previous)
     let from_selection = *from_idx.read();
     let to_selection = *to_idx.read();
-    let metrics_comparison = calculate_metrics_comparison(&data_points, &test_names, from_selection, to_selection, dark);
+    let metrics_comparison = calculate_metrics_comparison(
+        &data_points,
+        &test_names,
+        from_selection,
+        to_selection,
+        dark,
+    );
 
     // Map selection indices to chart positions
     // from_selection and to_selection are run_idx values, we need to find their commit_ids
     // and map to chart_commits positions
     let from_chart_pos: Option<usize> = from_selection.and_then(|run_i| {
-        runs_info.iter()
+        runs_info
+            .iter()
             .find(|r| r.run_idx == run_i)
             .and_then(|r| chart_commits.iter().position(|c| c == &r.commit_id))
     });
     let to_chart_pos: Option<usize> = to_selection.and_then(|run_i| {
-        runs_info.iter()
+        runs_info
+            .iter()
             .find(|r| r.run_idx == run_i)
             .and_then(|r| chart_commits.iter().position(|c| c == &r.commit_id))
     });
@@ -851,7 +871,7 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
                         span { if *metrics_expanded.read() { "▼" } else { "▶" } }
                         span { " Metrics Comparison" }
                     }
-                    
+
                     if *metrics_expanded.read() {
                         div { style: "margin-top: 0.5rem;",
                             // Table header
@@ -861,7 +881,7 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
                                 span { style: "flex: 1; text-align: right;", "To" }
                                 span { style: "flex: 1; text-align: right;", "Change" }
                             }
-                            
+
                             // Table rows
                             for (test_name, from_value, to_value, change_pct, color) in metrics_comparison.iter() {
                                 {
@@ -872,7 +892,7 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
                                                 span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
                                                 span { "{test_name}" }
                                             }
-                                            span { 
+                                            span {
                                                 style: "flex: 1; text-align: right; {muted_style(dark)}",
                                                 {
                                                     match from_value {
@@ -881,11 +901,11 @@ fn BenchmarkChart(name: String, data_points: Vec<BenchmarkDataPoint>, runs_info:
                                                     }
                                                 }
                                             }
-                                            span { 
+                                            span {
                                                 style: "flex: 1; text-align: right;",
                                                 "{to_value:.2}"
                                             }
-                                            span { 
+                                            span {
                                                 style: "flex: 1; text-align: right; font-weight: 500; color: {pct_color};",
                                                 "{format_change(*change_pct)}"
                                             }
@@ -911,17 +931,17 @@ fn calculate_metrics_comparison(
 ) -> Vec<(String, Option<f64>, f64, f64, String)> {
     let colors = chart_colors(dark);
     let mut result = Vec::new();
-    
+
     for (idx, test_name) in test_names.iter().enumerate() {
         let test_points: Vec<_> = data_points
             .iter()
             .filter(|p| p.test_name == *test_name)
             .collect();
-        
+
         if test_points.is_empty() {
             continue;
         }
-        
+
         // Get from and to values using indices
         let (from_value, to_value) = match (from_idx, to_idx) {
             (Some(from_i), Some(to_i)) => {
@@ -940,7 +960,7 @@ fn calculate_metrics_comparison(
                 }
             }
         };
-        
+
         if let Some(to_val) = to_value {
             let change_pct = match from_value {
                 Some(from_val) if from_val != 0.0 => ((to_val - from_val) / from_val) * 100.0,
@@ -950,7 +970,7 @@ fn calculate_metrics_comparison(
             result.push((test_name.clone(), from_value, to_val, change_pct, color));
         }
     }
-    
+
     result
 }
 
@@ -985,14 +1005,14 @@ fn ChartSvg(
     let padding_right = 20.0;
     let padding_top = 20.0;
     let padding_bottom = 40.0;
-    
+
     let num_commits = chart_commits.len();
     let grid_c = grid_color(dark);
     let axis_c = axis_color(dark);
 
     let padding_ratio_left = padding_left / chart_width;
     let padding_ratio_right = padding_right / chart_width;
-    
+
     let mut chart_div_width = use_signal(|| 0.0f64);
 
     rsx! {
@@ -1011,12 +1031,12 @@ fn ChartSvg(
                 let coords = e.data().element_coordinates();
                 let element_x = coords.x;
                 let div_width = *chart_div_width.read();
-                
+
                 if div_width > 0.0 && num_commits > 0 {
                     let fraction = element_x / div_width;
                     let chart_start = padding_ratio_left;
                     let chart_end = 1.0 - padding_ratio_right;
-                    
+
                     if fraction >= chart_start && fraction <= chart_end {
                         let chart_fraction = (fraction - chart_start) / (chart_end - chart_start);
                         if num_commits > 1 {
@@ -1263,23 +1283,24 @@ fn format_value(value: f64) -> String {
 }
 
 async fn load_benchmark_data() -> Result<BenchmarkData, String> {
-    let response = Request::get(DATA_URL)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch data: {}", e))?;
+    let window = web_sys::window().ok_or("No window")?;
 
-    if !response.ok() {
-        return Err(format!(
-            "HTTP error: {} {}",
-            response.status(),
-            response.status_text()
-        ));
+    let resp_value = JsFuture::from(window.fetch_with_str(DATA_URL))
+        .await
+        .map_err(|e| format!("Fetch error: {:?}", e))?;
+
+    let resp: web_sys::Response = resp_value.dyn_into().map_err(|_| "Response cast failed")?;
+
+    if !resp.ok() {
+        return Err(format!("HTTP error: {}", resp.status()));
     }
 
-    let text = response
-        .text()
+    let text_promise = resp.text().map_err(|_| "Failed to get text promise")?;
+    let text_value = JsFuture::from(text_promise)
         .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
+        .map_err(|e| format!("Text error: {:?}", e))?;
+
+    let text = text_value.as_string().ok_or("Response is not a string")?;
 
     serde_json::from_str(&text).map_err(|e| format!("Failed to parse JSON: {}", e))
 }

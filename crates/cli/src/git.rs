@@ -6,6 +6,55 @@ use git2::{BranchType, Repository};
 use git_bench_core::{AuthorInfo, CommitInfo};
 use std::path::Path;
 
+/// Try to extract GitHub username from email or git name
+fn extract_github_username(email: &Option<String>, name: &str) -> Option<String> {
+    // Try GitHub noreply email formats:
+    // - username@users.noreply.github.com
+    // - 12345+username@users.noreply.github.com
+    if let Some(email) = email {
+        if email.ends_with("@users.noreply.github.com") {
+            let local_part = email.split('@').next()?;
+            // Handle "id+username" format
+            if let Some(pos) = local_part.find('+') {
+                return Some(local_part[pos + 1..].to_string());
+            }
+            return Some(local_part.to_string());
+        }
+    }
+    
+    // Fallback: use name if it looks like a username (no spaces, reasonable length)
+    if !name.contains(' ') && !name.is_empty() && name.len() <= 39 {
+        return Some(name.to_string());
+    }
+    
+    None
+}
+
+/// Extract GitHub repo URL from git remote (origin)
+fn get_github_commit_url(repo: &Repository, commit_id: &str) -> Option<String> {
+    let remote = repo.find_remote("origin").ok()?;
+    let url = remote.url()?;
+    
+    // Parse various GitHub URL formats:
+    // - https://github.com/owner/repo.git
+    // - https://github.com/owner/repo
+    // - git@github.com:owner/repo.git
+    // - ssh://git@github.com/owner/repo.git
+    
+    let repo_path = if url.starts_with("git@github.com:") {
+        // SSH format: git@github.com:owner/repo.git
+        url.strip_prefix("git@github.com:")?.trim_end_matches(".git")
+    } else if url.contains("github.com/") {
+        // HTTPS format
+        let start = url.find("github.com/")? + "github.com/".len();
+        url[start..].trim_end_matches(".git")
+    } else {
+        return None;
+    };
+    
+    Some(format!("https://github.com/{}/commit/{}", repo_path, commit_id))
+}
+
 /// Get commit information from a local git repository
 pub fn get_commit_info(repo_path: &Path, commit_ref: Option<&str>) -> Result<CommitInfo> {
     let repo = Repository::open(repo_path)?;
@@ -24,8 +73,19 @@ pub fn get_commit_info(repo_path: &Path, commit_ref: Option<&str>) -> Result<Com
         .single()
         .ok_or_else(|| Error::Git(git2::Error::from_str("Invalid timestamp")))?;
 
+    let name = author.name().unwrap_or("Unknown").to_string();
+    let email = author.email().map(|s| s.to_string());
+    
+    // Try to extract GitHub username from email or name
+    let username = extract_github_username(&email, &name);
+    
+    let commit_id = commit.id().to_string();
+    
+    // Try to get commit URL from GitHub remote
+    let url = get_github_commit_url(&repo, &commit_id);
+
     Ok(CommitInfo {
-        id: commit.id().to_string(),
+        id: commit_id,
         message: commit
             .message()
             .unwrap_or("")
@@ -34,11 +94,11 @@ pub fn get_commit_info(repo_path: &Path, commit_ref: Option<&str>) -> Result<Com
             .unwrap_or("")
             .to_string(),
         timestamp,
-        url: None,
+        url,
         author: Some(AuthorInfo {
-            name: author.name().unwrap_or("Unknown").to_string(),
-            email: author.email().map(|s| s.to_string()),
-            username: None,
+            name,
+            email,
+            username,
         }),
     })
 }

@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-12-25T01:04:38.601024Z",
+  "last_update": "2025-12-25T00:48:26.838228Z",
   "entries": {
     "git-bench": [
       {
@@ -7,14 +7,12 @@
           "id": "a558136e81c9658b5b4513927e7876920cb250e2",
           "message": "dogfooding",
           "timestamp": "2025-12-25T00:30:54Z",
-          "url": "https://github.com/fedemagnani/git-bench/commit/a558136e81c9658b5b4513927e7876920cb250e2",
           "author": {
             "name": "fedemagnani",
-            "email": "0xdrun@gmail.com",
-            "username": "fedemagnani"
+            "email": "0xdrun@gmail.com"
           }
         },
-        "date": "2025-12-25T01:04:38.601003Z",
+        "date": "2025-12-25T00:48:26.838206Z",
         "tool": "cargo",
         "benches": [
           {
@@ -23,8 +21,8 @@
             "unit": "ns",
             "range": "[0.7916 ns, 0.7928 ns]",
             "extra": {
-              "low": "0.7916",
-              "high": "0.7928"
+              "high": "0.7928",
+              "low": "0.7916"
             }
           },
           {
@@ -73,8 +71,8 @@
             "unit": "ns",
             "range": "[943.9400 ns, 948.9600 ns]",
             "extra": {
-              "high": "948.9600",
-              "low": "943.9400"
+              "low": "943.9400",
+              "high": "948.9600"
             }
           },
           {
@@ -93,8 +91,8 @@
             "unit": "ns",
             "range": "[36.2660 ns, 36.6790 ns]",
             "extra": {
-              "high": "36.6790",
-              "low": "36.2660"
+              "low": "36.2660",
+              "high": "36.6790"
             }
           },
           {
@@ -103,8 +101,8 @@
             "unit": "ns",
             "range": "[344.5900 ns, 351.3000 ns]",
             "extra": {
-              "high": "351.3000",
-              "low": "344.5900"
+              "low": "344.5900",
+              "high": "351.3000"
             }
           }
         ]
