@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-12-25T02:31:06.352287458Z",
+  "last_update": "2025-12-25T02:56:47.600881186Z",
   "entries": {
     "git-bench": [
       {
@@ -23,8 +23,8 @@
             "unit": "ns",
             "range": "[0.7916 ns, 0.7928 ns]",
             "extra": {
-              "high": "0.7928",
-              "low": "0.7916"
+              "low": "0.7916",
+              "high": "0.7928"
             }
           },
           {
@@ -53,8 +53,8 @@
             "unit": "ns",
             "range": "[2.1185 ns, 2.1302 ns]",
             "extra": {
-              "low": "2.1185",
-              "high": "2.1302"
+              "high": "2.1302",
+              "low": "2.1185"
             }
           },
           {
@@ -63,8 +63,8 @@
             "unit": "ns",
             "range": "[80.6130 ns, 81.0240 ns]",
             "extra": {
-              "low": "80.6130",
-              "high": "81.0240"
+              "high": "81.0240",
+              "low": "80.6130"
             }
           },
           {
@@ -73,8 +73,8 @@
             "unit": "ns",
             "range": "[943.9400 ns, 948.9600 ns]",
             "extra": {
-              "low": "943.9400",
-              "high": "948.9600"
+              "high": "948.9600",
+              "low": "943.9400"
             }
           },
           {
@@ -93,8 +93,8 @@
             "unit": "ns",
             "range": "[36.2660 ns, 36.6790 ns]",
             "extra": {
-              "high": "36.6790",
-              "low": "36.2660"
+              "low": "36.2660",
+              "high": "36.6790"
             }
           },
           {
@@ -103,8 +103,8 @@
             "unit": "ns",
             "range": "[344.5900 ns, 351.3000 ns]",
             "extra": {
-              "high": "351.3000",
-              "low": "344.5900"
+              "low": "344.5900",
+              "high": "351.3000"
             }
           }
         ]
@@ -160,8 +160,8 @@
             "unit": "ns",
             "range": "[2.1000 ns, 2.1158 ns]",
             "extra": {
-              "low": "2.1000",
-              "high": "2.1158"
+              "high": "2.1158",
+              "low": "2.1000"
             }
           },
           {
@@ -180,8 +180,8 @@
             "unit": "ns",
             "range": "[954.2200 ns, 972.3800 ns]",
             "extra": {
-              "high": "972.3800",
-              "low": "954.2200"
+              "low": "954.2200",
+              "high": "972.3800"
             }
           },
           {
@@ -200,8 +200,8 @@
             "unit": "ns",
             "range": "[35.9970 ns, 36.6810 ns]",
             "extra": {
-              "high": "36.6810",
-              "low": "35.9970"
+              "low": "35.9970",
+              "high": "36.6810"
             }
           },
           {
@@ -210,8 +210,8 @@
             "unit": "ns",
             "range": "[348.6300 ns, 353.7400 ns]",
             "extra": {
-              "high": "353.7400",
-              "low": "348.6300"
+              "low": "348.6300",
+              "high": "353.7400"
             }
           }
         ]
@@ -237,8 +237,8 @@
             "unit": "ns",
             "range": "[0.8060 ns, 0.8220 ns]",
             "extra": {
-              "low": "0.8060",
-              "high": "0.8220"
+              "high": "0.8220",
+              "low": "0.8060"
             }
           },
           {
@@ -247,8 +247,8 @@
             "unit": "ns",
             "range": "[0.7966 ns, 0.8089 ns]",
             "extra": {
-              "low": "0.7966",
-              "high": "0.8089"
+              "high": "0.8089",
+              "low": "0.7966"
             }
           },
           {
@@ -267,8 +267,8 @@
             "unit": "ns",
             "range": "[2.1056 ns, 2.1151 ns]",
             "extra": {
-              "low": "2.1056",
-              "high": "2.1151"
+              "high": "2.1151",
+              "low": "2.1056"
             }
           },
           {
@@ -287,8 +287,8 @@
             "unit": "ns",
             "range": "[934.3800 ns, 944.5100 ns]",
             "extra": {
-              "high": "944.5100",
-              "low": "934.3800"
+              "low": "934.3800",
+              "high": "944.5100"
             }
           },
           {
@@ -317,115 +317,115 @@
             "unit": "ns",
             "range": "[325.3700 ns, 328.6400 ns]",
             "extra": {
-              "low": "325.3700",
-              "high": "328.6400"
+              "high": "328.6400",
+              "low": "325.3700"
             }
           }
         ]
       },
       {
         "commit": {
-          "id": "b588ad441a76a0d1475e364f63958e7f4a2378fb",
-          "message": "better-push",
-          "timestamp": "2025-12-25T02:12:21Z",
-          "url": "https://github.com/fedemagnani/git-bench/commit/b588ad441a76a0d1475e364f63958e7f4a2378fb",
+          "id": "77ff3d45afc099ce851c858a55c36be8c7499f24",
+          "message": "workflow",
+          "timestamp": "2025-12-25T02:37:37Z",
+          "url": "https://github.com/fedemagnani/git-bench/commit/77ff3d45afc099ce851c858a55c36be8c7499f24",
           "author": {
             "name": "fedemagnani",
             "email": "0xdrun@gmail.com",
             "username": "fedemagnani"
           }
         },
-        "date": "2025-12-25T02:31:06.352286607Z",
+        "date": "2025-12-25T02:56:47.600880295Z",
         "tool": "cargo",
         "benches": [
           {
             "name": "arithmetic::sum_1000",
-            "value": 1.244,
+            "value": 1.2459,
             "unit": "ns",
-            "range": "[1.2435 ns, 1.2447 ns]",
+            "range": "[1.2435 ns, 1.2509 ns]",
             "extra": {
               "low": "1.2435",
-              "high": "1.2447"
+              "high": "1.2509"
             }
           },
           {
             "name": "arithmetic::sum_10000",
-            "value": 1.2448,
+            "value": 1.2438,
             "unit": "ns",
-            "range": "[1.2435 ns, 1.2472 ns]",
+            "range": "[1.2431 ns, 1.2450 ns]",
             "extra": {
-              "low": "1.2435",
-              "high": "1.2472"
+              "high": "1.2450",
+              "low": "1.2431"
             }
           },
           {
             "name": "arithmetic::product_10",
-            "value": 4.8677,
+            "value": 4.8693,
             "unit": "ns",
-            "range": "[4.8669 ns, 4.8687 ns]",
+            "range": "[4.8674 ns, 4.8719 ns]",
             "extra": {
-              "high": "4.8687",
-              "low": "4.8669"
+              "high": "4.8719",
+              "low": "4.8674"
             }
           },
           {
             "name": "arithmetic::product_15",
-            "value": 6.4488,
+            "value": 6.4458,
             "unit": "ns",
-            "range": "[6.4476 ns, 6.4502 ns]",
+            "range": "[6.4441 ns, 6.4482 ns]",
             "extra": {
-              "low": "6.4476",
-              "high": "6.4502"
+              "low": "6.4441",
+              "high": "6.4482"
             }
           },
           {
             "name": "fibonacci::fib_10",
-            "value": 135.85,
+            "value": 135.93,
             "unit": "ns",
-            "range": "[135.7600 ns, 135.9500 ns]",
+            "range": "[135.8400 ns, 136.0200 ns]",
             "extra": {
-              "low": "135.7600",
-              "high": "135.9500"
+              "low": "135.8400",
+              "high": "136.0200"
             }
           },
           {
             "name": "fibonacci::fib_15",
-            "value": 1539.3,
+            "value": 1538.6,
             "unit": "ns",
-            "range": "[1538.6000 ns, 1540.1000 ns]",
+            "range": "[1537.9000 ns, 1539.7000 ns]",
             "extra": {
-              "high": "1540.1000",
-              "low": "1538.6000"
+              "high": "1539.7000",
+              "low": "1537.9000"
             }
           },
           {
             "name": "fibonacci::fib_20",
-            "value": 17230.0,
+            "value": 17132.0,
             "unit": "ns",
-            "range": "[17152.0000 ns, 17351.0000 ns]",
+            "range": "[17122.0000 ns, 17145.0000 ns]",
             "extra": {
-              "high": "17351.0000",
-              "low": "17152.0000"
+              "low": "17122.0000",
+              "high": "17145.0000"
             }
           },
           {
             "name": "sorting::sort_100",
-            "value": 59.27,
+            "value": 64.203,
             "unit": "ns",
-            "range": "[59.2200 ns, 59.3300 ns]",
+            "range": "[63.4400 ns, 65.0070 ns]",
             "extra": {
-              "low": "59.2200",
-              "high": "59.3300"
+              "low": "63.4400",
+              "high": "65.0070"
             }
           },
           {
             "name": "sorting::sort_1000",
-            "value": 538.98,
+            "value": 552.13,
             "unit": "ns",
-            "range": "[538.2300 ns, 539.8200 ns]",
+            "range": "[547.4900 ns, 557.2200 ns]",
             "extra": {
-              "high": "539.8200",
-              "low": "538.2300"
+              "low": "547.4900",
+              "high": "557.2200"
             }
           }
         ]
