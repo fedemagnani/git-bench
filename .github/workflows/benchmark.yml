@@ -28,7 +28,9 @@ jobs:
           cargo install --path crates/cli
 
       - name: Build dashboard
-        run: cd crates/dashboard && dx build --release
+        run: |
+          cd crates/dashboard && dx build --release
+          cp -r target/dx/git-bench-dashboard/release/web/public ../../dist
 
       - name: Run benchmarks
         run: cargo bench 2>&1 | tee benchmark-output.txt
@@ -49,8 +51,8 @@ jobs:
             --github-token "$GITHUB_TOKEN" \
             --auto-push \
             --gh-pages-branch gh-pages \
-            --benchmark-data-dir-path bench \
-            --dashboard-dir crates/dashboard/dist \
+            --benchmark-data-dir-path . \
+            --dashboard-dir dist \
             --alert-threshold "150%"
 
       - name: Upload artifact
@@ -59,3 +61,4 @@ jobs:
         with:
           name: benchmark-data
           path: benchmark-data.json
+          if-no-files-found: ignore

@@ -117,9 +117,16 @@ impl BenchmarkData {
         Ok(())
     }
 
-    /// Add a benchmark run to the data store
+    /// Add a benchmark run to the data store.
+    /// If any runs with the same commit hash already exist, they will be removed first.
     pub fn add_run(&mut self, suite_name: &str, run: BenchmarkRun, max_items: Option<usize>) {
         let entries = self.entries.entry(suite_name.to_string()).or_default();
+
+        // Remove all existing entries with the same commit hash
+        let commit_id = &run.commit.id;
+        entries.retain(|r| r.commit.id != *commit_id);
+
+        // Add the new entry
         entries.push(run);
 
         // Trim old entries if max_items is set
@@ -248,4 +255,3 @@ mod tests {
         assert!(!comparison.is_regression);
     }
 }
-

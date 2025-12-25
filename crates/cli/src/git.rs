@@ -143,30 +143,35 @@ pub fn fetch_remote(repo_path: &Path, remote_name: &str, branch: &str) -> Result
     Ok(())
 }
 
-/// Recursively copy a directory
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    if !dst.exists() {
-        std::fs::create_dir_all(dst).map_err(|e| Error::FileWrite {
-            path: dst.display().to_string(),
-            source: e,
-        })?;
-    }
+/// Recursively collect all files from a directory into memory
+/// Returns Vec of (relative_path, content)
+fn collect_dir_files(src: &Path) -> Result<Vec<(std::path::PathBuf, Vec<u8>)>> {
+    let mut files = Vec::new();
+    collect_dir_files_recursive(src, src, &mut files)?;
+    Ok(files)
+}
 
-    for entry in std::fs::read_dir(src).map_err(|e| Error::Other(format!("Failed to read dir: {}", e)))? {
+fn collect_dir_files_recursive(
+    base: &Path,
+    current: &Path,
+    files: &mut Vec<(std::path::PathBuf, Vec<u8>)>,
+) -> Result<()> {
+    for entry in std::fs::read_dir(current)
+        .map_err(|e| Error::Other(format!("Failed to read dir '{}': {}", current.display(), e)))?
+    {
         let entry = entry.map_err(|e| Error::Other(format!("Failed to read entry: {}", e)))?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
+        let path = entry.path();
 
-        if src_path.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
+        if path.is_dir() {
+            collect_dir_files_recursive(base, &path, files)?;
         } else {
-            std::fs::copy(&src_path, &dst_path).map_err(|e| Error::FileWrite {
-                path: dst_path.display().to_string(),
-                source: e,
+            let relative = path.strip_prefix(base).unwrap_or(&path).to_path_buf();
+            let content = std::fs::read(&path).map_err(|e| {
+                Error::Other(format!("Failed to read file '{}': {}", path.display(), e))
             })?;
+            files.push((relative, content));
         }
     }
-
     Ok(())
 }
 
@@ -204,6 +209,22 @@ pub fn deploy_to_gh_pages(
         .name()
         .ok_or_else(|| Error::Git(git2::Error::from_str("Cannot get current branch")))?
         .to_string();
+
+    // Read source files BEFORE checking out gh-pages (they won't exist after checkout)
+    let data_file_content = std::fs::read(data_file_path).map_err(|e| Error::Other(
+        format!("Failed to read data file '{}': {}", data_file_path.display(), e)
+    ))?;
+    
+    // Collect dashboard files if provided
+    let dashboard_files: Option<Vec<(std::path::PathBuf, Vec<u8>)>> = if let Some(dashboard_src) = config.dashboard_dir {
+        if dashboard_src.exists() {
+            Some(collect_dir_files(dashboard_src)?)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
     // Check for uncommitted changes
     let statuses = repo.statuses(None)?;
@@ -251,16 +272,26 @@ pub fn deploy_to_gh_pages(
         source: e,
     })?;
 
-    // Copy dashboard files if provided
-    if let Some(dashboard_src) = config.dashboard_dir {
-        if dashboard_src.exists() {
-            copy_dir_recursive(dashboard_src, &data_dir)?;
+    // Write dashboard files from memory
+    if let Some(files) = dashboard_files {
+        for (relative_path, content) in files {
+            let dest_path = data_dir.join(&relative_path);
+            if let Some(parent) = dest_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| Error::FileWrite {
+                    path: parent.display().to_string(),
+                    source: e,
+                })?;
+            }
+            std::fs::write(&dest_path, content).map_err(|e| Error::FileWrite {
+                path: dest_path.display().to_string(),
+                source: e,
+            })?;
         }
     }
 
-    // Copy data file
+    // Write data file from memory
     let dest_file = data_dir.join("data.json");
-    std::fs::copy(data_file_path, &dest_file).map_err(|e| Error::FileWrite {
+    std::fs::write(&dest_file, data_file_content).map_err(|e| Error::FileWrite {
         path: dest_file.display().to_string(),
         source: e,
     })?;
