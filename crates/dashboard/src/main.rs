@@ -35,7 +35,7 @@ struct SelectionCtx {
 
 /// Global GitHub repo URL context
 
-const DATA_URL: &str = "data.json";
+const DATA_URL: &str = "./data.json";
 
 /// Represents a parsed benchmark name hierarchy
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
