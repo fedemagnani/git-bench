@@ -33,6 +33,8 @@ jobs:
           cp -r target/dx/git-bench-dashboard/release/web/public ../../dist
           # Fix absolute paths for GitHub Pages subdirectory deployment
           find ../../dist -type f \( -name "*.html" -o -name "*.js" \) -exec sed -i 's|"/\./|"./|g' {} \;
+          # Add base tag to prevent URL manipulation
+          sed -i 's|<head>|<head><base href="./">|' ../../dist/index.html
 
       - name: Run benchmarks
         run: cargo bench 2>&1 | tee benchmark-output.txt

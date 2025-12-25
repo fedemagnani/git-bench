@@ -34,8 +34,35 @@ struct SelectionCtx {
 }
 
 /// Global GitHub repo URL context
+use std::sync::OnceLock;
 
-const DATA_URL: &str = "./data.json";
+/// Store the data URL computed at startup (before Dioxus changes location)
+static DATA_URL: OnceLock<String> = OnceLock::new();
+
+/// Initialize the data URL from the current page location
+fn init_data_url() {
+    DATA_URL.get_or_init(|| {
+        if let Some(window) = web_sys::window() {
+            if let Ok(href) = window.location().href() {
+                // Remove any trailing filename, keep only the directory
+                let base = if href.ends_with('/') {
+                    href
+                } else if let Some(pos) = href.rfind('/') {
+                    href[..=pos].to_string()
+                } else {
+                    href + "/"
+                };
+                return format!("{}data.json", base);
+            }
+        }
+        // Fallback
+        "./data.json".to_string()
+    });
+}
+
+fn get_data_url() -> &'static str {
+    DATA_URL.get().map(|s| s.as_str()).unwrap_or("./data.json")
+}
 
 /// Represents a parsed benchmark name hierarchy
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -195,6 +222,8 @@ fn extract_runs(runs: &[BenchmarkRun]) -> Vec<RunInfo> {
 
 fn main() {
     tracing_wasm::set_as_global_default();
+    // Capture the data URL BEFORE Dioxus routing changes window.location
+    init_data_url();
     launch(App);
 }
 
@@ -1284,8 +1313,9 @@ fn format_value(value: f64) -> String {
 
 async fn load_benchmark_data() -> Result<BenchmarkData, String> {
     let window = web_sys::window().ok_or("No window")?;
+    let data_url = get_data_url();
 
-    let resp_value = JsFuture::from(window.fetch_with_str(DATA_URL))
+    let resp_value = JsFuture::from(window.fetch_with_str(data_url))
         .await
         .map_err(|e| format!("Fetch error: {:?}", e))?;
 
