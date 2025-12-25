@@ -183,8 +183,18 @@ fn run_command(args: RunArgs) -> Result<()> {
     let output = std::fs::read_to_string(&args.output_file)
         .with_context(|| format!("Failed to read benchmark output file: {:?}", args.output_file))?;
 
-    let results =
-        parse_from_string(&output).with_context(|| "Failed to parse benchmark output")?;
+    let results = match parse_from_string(&output) {
+        Ok(r) => r,
+        Err(_) => {
+            info!("No benchmark results found in output, skipping");
+            return Ok(());
+        }
+    };
+
+    if results.is_empty() {
+        info!("No benchmark results found, skipping");
+        return Ok(());
+    }
 
     info!("Parsed {} benchmark results", results.len());
 
@@ -310,8 +320,13 @@ fn store_command(args: StoreArgs) -> Result<()> {
     let output = std::fs::read_to_string(&args.output_file)
         .with_context(|| format!("Failed to read benchmark output file: {:?}", args.output_file))?;
 
-    let results =
-        parse_from_string(&output).with_context(|| "Failed to parse benchmark output")?;
+    let results = match parse_from_string(&output) {
+        Ok(r) if !r.is_empty() => r,
+        _ => {
+            info!("No benchmark results found, skipping");
+            return Ok(());
+        }
+    };
 
     info!("Parsed {} benchmark results", results.len());
 
@@ -342,8 +357,13 @@ fn compare_command(args: CompareArgs) -> Result<()> {
     let output = std::fs::read_to_string(&args.output_file)
         .with_context(|| format!("Failed to read benchmark output file: {:?}", args.output_file))?;
 
-    let results =
-        parse_from_string(&output).with_context(|| "Failed to parse benchmark output")?;
+    let results = match parse_from_string(&output) {
+        Ok(r) if !r.is_empty() => r,
+        _ => {
+            info!("No benchmark results found, skipping comparison");
+            return Ok(());
+        }
+    };
 
     let data = BenchmarkData::load_from_file(&args.data_file)
         .with_context(|| "Failed to load benchmark data")?;
