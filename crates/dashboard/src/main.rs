@@ -13,8 +13,10 @@
 //! - Multiple parents under the same `grandparent` are different charts in the same container.
 
 use dioxus::prelude::*;
+use dioxus_web::{Config, WebHistory};
 use git_bench_core::{BenchmarkData, BenchmarkRun};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
@@ -36,32 +38,35 @@ struct SelectionCtx {
 /// Global GitHub repo URL context
 use std::sync::OnceLock;
 
-/// Store the data URL computed at startup (before Dioxus changes location)
-static DATA_URL: OnceLock<String> = OnceLock::new();
+/// Store the base path computed at startup (before Dioxus changes location)
+static BASE_PATH: OnceLock<String> = OnceLock::new();
 
-/// Initialize the data URL from the current page location
-fn init_data_url() {
-    DATA_URL.get_or_init(|| {
-        if let Some(window) = web_sys::window() {
-            if let Ok(href) = window.location().href() {
-                // Remove any trailing filename, keep only the directory
-                let base = if href.ends_with('/') {
-                    href
-                } else if let Some(pos) = href.rfind('/') {
-                    href[..=pos].to_string()
-                } else {
-                    href + "/"
-                };
-                return format!("{}data.json", base);
+/// Initialize the base path from the current page location
+fn init_base_path() -> String {
+    BASE_PATH
+        .get_or_init(|| {
+            if let Some(window) = web_sys::window() {
+                if let Ok(pathname) = window.location().pathname() {
+                    // Normalize: ensure it starts with / and ends with /
+                    let path = if pathname.ends_with('/') {
+                        pathname
+                    } else if let Some(pos) = pathname.rfind('/') {
+                        // Remove filename, keep directory
+                        pathname[..=pos].to_string()
+                    } else {
+                        "/".to_string()
+                    };
+                    return path;
+                }
             }
-        }
-        // Fallback
-        "./data.json".to_string()
-    });
+            "/".to_string()
+        })
+        .clone()
 }
 
-fn get_data_url() -> &'static str {
-    DATA_URL.get().map(|s| s.as_str()).unwrap_or("./data.json")
+fn get_data_url() -> String {
+    // Data is always at ./data.json relative to the base path
+    format!("{}data.json", BASE_PATH.get().unwrap_or(&"/".to_string()))
 }
 
 /// Represents a parsed benchmark name hierarchy
@@ -222,9 +227,12 @@ fn extract_runs(runs: &[BenchmarkRun]) -> Vec<RunInfo> {
 
 fn main() {
     tracing_wasm::set_as_global_default();
-    // Capture the data URL BEFORE Dioxus routing changes window.location
-    init_data_url();
-    launch(App);
+    // Capture the base path BEFORE Dioxus routing changes window.location
+    let base_path = init_base_path();
+    // Create WebHistory with the correct prefix so Dioxus doesn't redirect to root
+    let history = Rc::new(WebHistory::new(Some(base_path), true));
+    // Launch with the configured history
+    dioxus_web::launch::launch_cfg(App, Config::new().history(history));
 }
 
 #[component]
@@ -1315,7 +1323,7 @@ async fn load_benchmark_data() -> Result<BenchmarkData, String> {
     let window = web_sys::window().ok_or("No window")?;
     let data_url = get_data_url();
 
-    let resp_value = JsFuture::from(window.fetch_with_str(data_url))
+    let resp_value = JsFuture::from(window.fetch_with_str(&data_url))
         .await
         .map_err(|e| format!("Fetch error: {:?}", e))?;
 
