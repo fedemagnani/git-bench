@@ -205,16 +205,30 @@ fn run_command(args: RunArgs) -> Result<()> {
 
     debug!("Commit: {} - {}", &commit.id[..7], commit.message);
 
+    // Load existing benchmark data for comparison
+    // If auto_push is enabled, fetch from gh-pages to get historical data
+    // Otherwise, use local file (for development/testing)
     let data_file = if let Some(ref external_path) = args.external_data_json_path {
         external_path.clone()
     } else {
         args.data_file.clone()
     };
 
-    let mut data = BenchmarkData::load_from_file(&data_file).unwrap_or_else(|_| {
-        info!("Creating new benchmark data file");
-        BenchmarkData::new()
-    });
+    let mut data = if args.auto_push {
+        // Fetch existing data from gh-pages for proper comparison with history
+        git::fetch_data_from_gh_pages(
+            &repo_path,
+            &args.gh_pages_branch,
+            &args.benchmark_data_dir_path,
+            "origin",
+        )
+    } else {
+        // Local development: use local file
+        BenchmarkData::load_from_file(&data_file).unwrap_or_else(|_| {
+            info!("Creating new benchmark data file");
+            BenchmarkData::new()
+        })
+    };
 
     let compare_config = CompareConfig::from_percentages(
         &args.alert_threshold,
@@ -263,13 +277,9 @@ fn run_command(args: RunArgs) -> Result<()> {
             benches: results,
         };
 
-        data.add_run(&args.name, run, args.max_items_in_chart);
-        data.save_to_file(&data_file)
-            .with_context(|| "Failed to save benchmark data")?;
-
-        info!("Saved benchmark data to {:?}", data_file);
-
         if args.auto_push {
+            // Deploy to gh-pages: the deploy function reads existing data.json from gh-pages,
+            // merges the new run, and writes back. This preserves history.
             info!(
                 "Deploying to GitHub Pages branch: {}",
                 args.gh_pages_branch
@@ -283,7 +293,13 @@ fn run_command(args: RunArgs) -> Result<()> {
                 dashboard_dir: args.dashboard_dir.as_deref(),
             };
 
-            match git::deploy_to_gh_pages(&repo_path, &data_file, &gh_config) {
+            match git::deploy_to_gh_pages(
+                &repo_path,
+                &run,
+                &args.name,
+                args.max_items_in_chart,
+                &gh_config,
+            ) {
                 Ok(commit_id) => {
                     if commit_id == "No changes" {
                         info!("No changes to deploy - benchmark data already up to date");
@@ -302,6 +318,11 @@ fn run_command(args: RunArgs) -> Result<()> {
                 }
             }
         } else {
+            // Local save only (for development/testing)
+            data.add_run(&args.name, run, args.max_items_in_chart);
+            data.save_to_file(&data_file)
+                .with_context(|| "Failed to save benchmark data")?;
+            info!("Saved benchmark data to {:?}", data_file);
             info!("To view dashboard, use the Dioxus dashboard: cd crates/dashboard && ./build.sh");
         }
     }
