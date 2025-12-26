@@ -254,5 +254,128 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
         let result = parser.parse(output);
         assert!(result.is_err());
     }
-}
 
+    #[test]
+    fn test_parse_libtest_hierarchical_names() {
+        let output = r#"
+running 4 tests
+test math::arithmetic::bench_add ... bench:         100 ns/iter (+/- 5)
+test math::arithmetic::bench_sub ... bench:         110 ns/iter (+/- 6)
+test math::geometry::bench_area ... bench:         200 ns/iter (+/- 10)
+test standalone_bench ... bench:         50 ns/iter (+/- 2)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 4 measured; 0 filtered out
+        "#;
+
+        let parser = CargoParser::new().unwrap();
+        let results = parser.parse(output).unwrap();
+
+        assert_eq!(results.len(), 4);
+
+        // grandparent::parent::bench format
+        assert_eq!(results[0].name, "math::arithmetic::bench_add");
+        assert_eq!(results[0].value, 100.0);
+
+        assert_eq!(results[1].name, "math::arithmetic::bench_sub");
+        assert_eq!(results[1].value, 110.0);
+
+        // grandparent::parent::bench with different parent
+        assert_eq!(results[2].name, "math::geometry::bench_area");
+        assert_eq!(results[2].value, 200.0);
+
+        // standalone (no hierarchy)
+        assert_eq!(results[3].name, "standalone_bench");
+        assert_eq!(results[3].value, 50.0);
+    }
+
+    #[test]
+    fn test_parse_criterion_hierarchical_names() {
+        let output = r#"
+math/arithmetic/add     time:   [100.00 ns 105.00 ns 110.00 ns]
+math/arithmetic/sub     time:   [110.00 ns 115.00 ns 120.00 ns]
+math/geometry/area      time:   [200.00 ns 210.00 ns 220.00 ns]
+standalone              time:   [50.00 ns 55.00 ns 60.00 ns]
+        "#;
+
+        let parser = CargoParser::new().unwrap();
+        let results = parser.parse(output).unwrap();
+
+        assert_eq!(results.len(), 4);
+
+        // grandparent/parent/bench format (Criterion style)
+        assert_eq!(results[0].name, "math/arithmetic/add");
+        assert!((results[0].value - 105.0).abs() < 0.01);
+
+        assert_eq!(results[1].name, "math/arithmetic/sub");
+        assert!((results[1].value - 115.0).abs() < 0.01);
+
+        assert_eq!(results[2].name, "math/geometry/area");
+        assert!((results[2].value - 210.0).abs() < 0.01);
+
+        // standalone (no hierarchy)
+        assert_eq!(results[3].name, "standalone");
+        assert!((results[3].value - 55.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_parse_deep_hierarchy() {
+        let output = r#"
+running 2 tests
+test level1::level2::level3::level4::deep_bench ... bench:         500 ns/iter (+/- 25)
+test a::b::c ... bench:         300 ns/iter (+/- 15)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 2 measured; 0 filtered out
+        "#;
+
+        let parser = CargoParser::new().unwrap();
+        let results = parser.parse(output).unwrap();
+
+        assert_eq!(results.len(), 2);
+
+        // Very deep hierarchy (4+ levels)
+        assert_eq!(
+            results[0].name,
+            "level1::level2::level3::level4::deep_bench"
+        );
+        assert_eq!(results[0].value, 500.0);
+
+        // Minimal hierarchy (3 levels)
+        assert_eq!(results[1].name, "a::b::c");
+        assert_eq!(results[1].value, 300.0);
+    }
+
+    #[test]
+    fn test_parse_mixed_formats_with_hierarchy() {
+        let output = r#"
+running 2 tests
+test crypto::hashing::bench_sha256 ... bench:       1,500 ns/iter (+/- 75)
+test crypto::signing::bench_ecdsa ... bench:       5,000 ns/iter (+/- 250)
+
+crypto/encryption/aes   time:   [2.0000 µs 2.1000 µs 2.2000 µs]
+crypto/encryption/rsa   time:   [10.000 ms 10.500 ms 11.000 ms]
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 2 measured; 0 filtered out
+        "#;
+
+        let parser = CargoParser::new().unwrap();
+        let results = parser.parse(output).unwrap();
+
+        assert_eq!(results.len(), 4);
+
+        // libtest with :: separator
+        assert_eq!(results[0].name, "crypto::hashing::bench_sha256");
+        assert_eq!(results[0].value, 1500.0);
+
+        assert_eq!(results[1].name, "crypto::signing::bench_ecdsa");
+        assert_eq!(results[1].value, 5000.0);
+
+        // criterion with / separator
+        assert_eq!(results[2].name, "crypto/encryption/aes");
+        // 2.1 µs = 2100 ns
+        assert!((results[2].value - 2100.0).abs() < 1.0);
+
+        assert_eq!(results[3].name, "crypto/encryption/rsa");
+        // 10.5 ms = 10_500_000 ns
+        assert!((results[3].value - 10_500_000.0).abs() < 1000.0);
+    }
+}

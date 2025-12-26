@@ -3,7 +3,7 @@
 use crate::error::{Error, Result};
 use chrono::{TimeZone, Utc};
 use git2::{BranchType, Repository};
-use git_bench_core::{AuthorInfo, CommitInfo};
+use git_bench_core::{AuthorInfo, BenchmarkData, CommitInfo};
 use std::path::Path;
 
 /// Try to extract GitHub username from email or git name
@@ -21,12 +21,12 @@ fn extract_github_username(email: &Option<String>, name: &str) -> Option<String>
             return Some(local_part.to_string());
         }
     }
-    
+
     // Fallback: use name if it looks like a username (no spaces, reasonable length)
     if !name.contains(' ') && !name.is_empty() && name.len() <= 39 {
         return Some(name.to_string());
     }
-    
+
     None
 }
 
@@ -34,16 +34,17 @@ fn extract_github_username(email: &Option<String>, name: &str) -> Option<String>
 fn get_github_commit_url(repo: &Repository, commit_id: &str) -> Option<String> {
     let remote = repo.find_remote("origin").ok()?;
     let url = remote.url()?;
-    
+
     // Parse various GitHub URL formats:
     // - https://github.com/owner/repo.git
     // - https://github.com/owner/repo
     // - git@github.com:owner/repo.git
     // - ssh://git@github.com/owner/repo.git
-    
+
     let repo_path = if url.starts_with("git@github.com:") {
         // SSH format: git@github.com:owner/repo.git
-        url.strip_prefix("git@github.com:")?.trim_end_matches(".git")
+        url.strip_prefix("git@github.com:")?
+            .trim_end_matches(".git")
     } else if url.contains("github.com/") {
         // HTTPS format
         let start = url.find("github.com/")? + "github.com/".len();
@@ -51,8 +52,11 @@ fn get_github_commit_url(repo: &Repository, commit_id: &str) -> Option<String> {
     } else {
         return None;
     };
-    
-    Some(format!("https://github.com/{}/commit/{}", repo_path, commit_id))
+
+    Some(format!(
+        "https://github.com/{}/commit/{}",
+        repo_path, commit_id
+    ))
 }
 
 /// Get commit information from a local git repository
@@ -75,12 +79,12 @@ pub fn get_commit_info(repo_path: &Path, commit_ref: Option<&str>) -> Result<Com
 
     let name = author.name().unwrap_or("Unknown").to_string();
     let email = author.email().map(|s| s.to_string());
-    
+
     // Try to extract GitHub username from email or name
     let username = extract_github_username(&email, &name);
-    
+
     let commit_id = commit.id().to_string();
-    
+
     // Try to get commit URL from GitHub remote
     let url = get_github_commit_url(&repo, &commit_id);
 
@@ -196,10 +200,61 @@ impl Default for GhPagesConfig<'_> {
     }
 }
 
-/// Deploy benchmark data to GitHub Pages branch
+/// Fetch existing benchmark data from gh-pages branch.
+/// Returns empty data if the branch or file doesn't exist.
+pub fn fetch_data_from_gh_pages(
+    repo_path: &Path,
+    branch: &str,
+    data_dir: &str,
+    remote: &str,
+) -> BenchmarkData {
+    // Try to fetch the remote branch first
+    let _ = fetch_remote(repo_path, remote, branch);
+
+    // Try to read data.json using git show
+    let file_path = format!("{}/data.json", data_dir);
+    let ref_spec = format!("{}/{}", remote, branch);
+
+    let output = std::process::Command::new("git")
+        .args(["show", &format!("{}:{}", ref_spec, file_path)])
+        .current_dir(repo_path)
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            let content = String::from_utf8_lossy(&output.stdout);
+            match serde_json::from_str::<BenchmarkData>(&content) {
+                Ok(data) => {
+                    tracing::info!(
+                        "Loaded existing benchmark data from {}: {} entries",
+                        ref_spec,
+                        data.entries.values().map(|v| v.len()).sum::<usize>()
+                    );
+                    data
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to parse existing data.json: {}", e);
+                    BenchmarkData::new()
+                }
+            }
+        }
+        _ => {
+            tracing::info!(
+                "No existing data.json found on {} (this is normal for first run)",
+                ref_spec
+            );
+            BenchmarkData::new()
+        }
+    }
+}
+
+/// Deploy benchmark data to GitHub Pages branch.
+/// The new_run is merged with existing data.json on gh-pages to preserve history.
 pub fn deploy_to_gh_pages(
     repo_path: &Path,
-    data_file_path: &Path,
+    new_run: &git_bench_core::BenchmarkRun,
+    suite_name: &str,
+    max_items: Option<usize>,
     config: &GhPagesConfig,
 ) -> Result<String> {
     let repo = Repository::open(repo_path)?;
@@ -210,21 +265,17 @@ pub fn deploy_to_gh_pages(
         .ok_or_else(|| Error::Git(git2::Error::from_str("Cannot get current branch")))?
         .to_string();
 
-    // Read source files BEFORE checking out gh-pages (they won't exist after checkout)
-    let data_file_content = std::fs::read(data_file_path).map_err(|e| Error::Other(
-        format!("Failed to read data file '{}': {}", data_file_path.display(), e)
-    ))?;
-    
-    // Collect dashboard files if provided
-    let dashboard_files: Option<Vec<(std::path::PathBuf, Vec<u8>)>> = if let Some(dashboard_src) = config.dashboard_dir {
-        if dashboard_src.exists() {
-            Some(collect_dir_files(dashboard_src)?)
+    // Collect dashboard files BEFORE checking out gh-pages (they won't exist after checkout)
+    let dashboard_files: Option<Vec<(std::path::PathBuf, Vec<u8>)>> =
+        if let Some(dashboard_src) = config.dashboard_dir {
+            if dashboard_src.exists() {
+                Some(collect_dir_files(dashboard_src)?)
+            } else {
+                None
+            }
         } else {
             None
-        }
-    } else {
-        None
-    };
+        };
 
     // Check for uncommitted changes
     let statuses = repo.statuses(None)?;
@@ -289,9 +340,24 @@ pub fn deploy_to_gh_pages(
         }
     }
 
-    // Write data file from memory
+    // Load existing data.json from gh-pages (if it exists) to preserve history
     let dest_file = data_dir.join("data.json");
-    std::fs::write(&dest_file, data_file_content).map_err(|e| Error::FileWrite {
+    let mut data = if dest_file.exists() {
+        git_bench_core::BenchmarkData::load_from_file(&dest_file).unwrap_or_else(|e| {
+            tracing::warn!("Failed to load existing data.json, starting fresh: {}", e);
+            git_bench_core::BenchmarkData::new()
+        })
+    } else {
+        git_bench_core::BenchmarkData::new()
+    };
+
+    // Add the new run to the existing data (this preserves history)
+    data.add_run(suite_name, new_run.clone(), max_items);
+
+    // Write merged data
+    let data_content = serde_json::to_string_pretty(&data)
+        .map_err(|e| Error::Other(format!("Failed to serialize benchmark data: {}", e)))?;
+    std::fs::write(&dest_file, data_content).map_err(|e| Error::FileWrite {
         path: dest_file.display().to_string(),
         source: e,
     })?;
@@ -444,4 +510,3 @@ mod tests {
         assert!(!info.id.is_empty());
     }
 }
-
