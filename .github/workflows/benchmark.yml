@@ -1,4 +1,6 @@
 # Dogfooding: git-bench benchmarks itself
+# This workflow tests git-bench by running it on its own codebase.
+# For external projects, see .github/workflows/benchmark-example.yml
 name: Benchmark
 
 on:
@@ -18,17 +20,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: dtolnay/rust-toolchain@stable
+      # Use nightly for libtest benchmarks (#![feature(test)])
+      # Criterion benchmarks also work on nightly
+      - uses: dtolnay/rust-toolchain@nightly
 
-      - name: Setup
+      - name: Install git-bench (from local source for dogfooding)
         run: |
-          rustup target add wasm32-unknown-unknown
-          cargo install dioxus-cli wasm-bindgen-cli
-          # Install git-bench from this repo
+          # For dogfooding: install from local source to test current changes
+          # External projects should use: cargo install --git https://github.com/fedemagnani/git-bench git-bench
           cargo install --path crates/cli
 
-      - name: Build dashboard
+      - name: Build dashboard (from local source for dogfooding)
         run: |
+          # For dogfooding: build dashboard from local source
+          # External projects should use: cargo install --git https://github.com/fedemagnani/git-bench git-bench-dashboard
+          rustup target add wasm32-unknown-unknown
+          cargo install dioxus-cli
           cd crates/dashboard && dx build --release
           cp -r target/dx/git-bench-dashboard/release/web/public ../../dist
           # Fix absolute paths for GitHub Pages subdirectory deployment
@@ -59,10 +66,10 @@ jobs:
             --dashboard-dir dist \
             --alert-threshold "150%"
 
-      - name: Upload artifact
+      - name: Upload benchmark output
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: benchmark-data
-          path: benchmark-data.json
+          name: benchmark-output
+          path: benchmark-output.txt
           if-no-files-found: ignore

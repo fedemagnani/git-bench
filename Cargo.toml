@@ -19,6 +19,12 @@ publish = false
 [dev-dependencies]
 criterion = "0.5"
 
+# Criterion benchmarks (stable Rust)
 [[bench]]
-name = "bench"
+name = "criterion"
 harness = false
+
+# Libtest benchmarks (nightly Rust, #![feature(test)])
+[[bench]]
+name = "libtest"
+harness = true
