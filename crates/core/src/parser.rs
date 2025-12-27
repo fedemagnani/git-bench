@@ -26,9 +26,10 @@ pub struct CargoParser {
 impl CargoParser {
     /// Create a new cargo parser
     pub fn new() -> Result<Self> {
-        // libtest format: test bench_name ... bench:       1,234 ns/iter (+/- 56)
+        // libtest format: test bench_name ... bench:       1,234.56 ns/iter (+/- 78.90)
+        // Note: values can be integers (1,234) or decimals (1,234.56)
         let libtest_regex = Regex::new(
-            r"test\s+(\S+)\s+\.\.\.\s+bench:\s+([\d,]+)\s+(\w+/\w+)(?:\s+\(\+/-\s+([\d,]+)\))?",
+            r"test\s+(\S+)\s+\.\.\.\s+bench:\s+([\d,.]+)\s+(\w+/\w+)(?:\s+\(\+/-\s+([\d,.]+)\))?",
         )?;
 
         // Criterion format: bench_name          time:   [1.2345 µs 1.2456 µs 1.2567 µs]
@@ -253,6 +254,36 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
         let parser = CargoParser::new().unwrap();
         let result = parser.parse(output);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_libtest_decimal_values() {
+        let output = r#"
+running 3 tests
+test spsc::burst::crossbeam          ... bench:       9,252.28 ns/iter (+/- 137.09)
+test spsc::latency::std_sync         ... bench: 212,764,781.50 ns/iter (+/- 14,463,323.98)
+test spsc::seq_inout::veloce         ... bench:           1.55 ns/iter (+/- 0.01)
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 3 measured; 0 filtered out
+        "#;
+
+        let parser = CargoParser::new().unwrap();
+        let results = parser.parse(output).unwrap();
+
+        assert_eq!(results.len(), 3);
+
+        // Decimal with comma thousands separator
+        assert_eq!(results[0].name, "spsc::burst::crossbeam");
+        assert!((results[0].value - 9252.28).abs() < 0.01);
+        assert_eq!(results[0].range, Some("+/- 137.09".to_string()));
+
+        // Large decimal value
+        assert_eq!(results[1].name, "spsc::latency::std_sync");
+        assert!((results[1].value - 212764781.50).abs() < 0.01);
+
+        // Small decimal value
+        assert_eq!(results[2].name, "spsc::seq_inout::veloce");
+        assert!((results[2].value - 1.55).abs() < 0.01);
     }
 
     #[test]

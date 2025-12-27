@@ -304,6 +304,64 @@ pub fn container_title_style(_dark: bool) -> String {
      letter-spacing: 0.05em;".to_string()
 }
 
+/// Collapsible header style (for module containers)
+pub fn collapsible_header_style(dark: bool) -> String {
+    let border = border_color(dark);
+    let hover_bg = if dark { "#111111" } else { "#f5f5f5" };
+    format!(
+        "display: flex; \
+         align-items: center; \
+         padding: 0.6rem 0.75rem; \
+         border-bottom: 1px solid {border}; \
+         cursor: pointer; \
+         user-select: none; \
+         transition: background 0.15s; \
+         &:hover {{ background: {hover_bg}; }}"
+    )
+}
+
+/// Collapsible chart header style
+pub fn collapsible_chart_header_style(dark: bool) -> String {
+    let border = border_color(dark);
+    let hover_bg = if dark { "#0a0a0a" } else { "#fafafa" };
+    format!(
+        "display: flex; \
+         justify-content: space-between; \
+         align-items: center; \
+         padding: 0.4rem 0.6rem; \
+         border-bottom: 1px solid {border}; \
+         cursor: pointer; \
+         user-select: none; \
+         transition: background 0.15s;"
+    )
+}
+
+/// Chart name style (for collapsible headers)
+pub fn chart_name_style(_dark: bool) -> String {
+    "font-size: 0.85rem; \
+     font-weight: normal;".to_string()
+}
+
+/// Unit style (for collapsible headers)
+pub fn unit_style(dark: bool) -> String {
+    let color = muted_color(dark);
+    format!("color: {color}; font-size: 0.7rem; margin-left: 0.25rem;")
+}
+
+/// Sidebar toggle style
+pub fn sidebar_toggle_style(dark: bool) -> String {
+    let border = border_color(dark);
+    let hover_bg = if dark { "#111111" } else { "#f5f5f5" };
+    format!(
+        "display: flex; \
+         align-items: center; \
+         padding: 0.6rem 0.75rem; \
+         border-bottom: 1px solid {border}; \
+         cursor: pointer; \
+         user-select: none;"
+    )
+}
+
 /// Chart card style
 pub fn chart_card_style(dark: bool) -> String {
     let border = border_color(dark);

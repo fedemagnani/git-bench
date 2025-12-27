@@ -1,5 +1,5 @@
 {
-  "last_update": "2025-12-26T01:11:33.056862913Z",
+  "last_update": "2025-12-27T23:13:11.952908643Z",
   "entries": {
     "git-bench": [
       {
@@ -33,8 +33,8 @@
             "unit": "ns",
             "range": "[0.7951 ns, 0.8018 ns]",
             "extra": {
-              "high": "0.8018",
-              "low": "0.7951"
+              "low": "0.7951",
+              "high": "0.8018"
             }
           },
           {
@@ -43,8 +43,8 @@
             "unit": "ns",
             "range": "[1.4031 ns, 1.4126 ns]",
             "extra": {
-              "low": "1.4031",
-              "high": "1.4126"
+              "high": "1.4126",
+              "low": "1.4031"
             }
           },
           {
@@ -93,8 +93,8 @@
             "unit": "ns",
             "range": "[36.2660 ns, 36.6790 ns]",
             "extra": {
-              "low": "36.2660",
-              "high": "36.6790"
+              "high": "36.6790",
+              "low": "36.2660"
             }
           },
           {
@@ -150,8 +150,8 @@
             "unit": "ns",
             "range": "[1.3825 ns, 1.3890 ns]",
             "extra": {
-              "high": "1.3890",
-              "low": "1.3825"
+              "low": "1.3825",
+              "high": "1.3890"
             }
           },
           {
@@ -160,8 +160,8 @@
             "unit": "ns",
             "range": "[2.1000 ns, 2.1158 ns]",
             "extra": {
-              "low": "2.1000",
-              "high": "2.1158"
+              "high": "2.1158",
+              "low": "2.1000"
             }
           },
           {
@@ -190,8 +190,8 @@
             "unit": "ns",
             "range": "[10697.0000 ns, 10784.0000 ns]",
             "extra": {
-              "high": "10784.0000",
-              "low": "10697.0000"
+              "low": "10697.0000",
+              "high": "10784.0000"
             }
           },
           {
@@ -354,8 +354,8 @@
             "unit": "ns",
             "range": "[1.2444 ns, 1.2601 ns]",
             "extra": {
-              "low": "1.2444",
-              "high": "1.2601"
+              "high": "1.2601",
+              "low": "1.2444"
             }
           },
           {
@@ -394,8 +394,8 @@
             "unit": "ns",
             "range": "[1538.9000 ns, 1545.9000 ns]",
             "extra": {
-              "low": "1538.9000",
-              "high": "1545.9000"
+              "high": "1545.9000",
+              "low": "1538.9000"
             }
           },
           {
@@ -414,8 +414,8 @@
             "unit": "ns",
             "range": "[60.1470 ns, 60.3120 ns]",
             "extra": {
-              "high": "60.3120",
-              "low": "60.1470"
+              "low": "60.1470",
+              "high": "60.3120"
             }
           },
           {
@@ -471,8 +471,8 @@
             "unit": "ns",
             "range": "[4.8657 ns, 4.9042 ns]",
             "extra": {
-              "low": "4.8657",
-              "high": "4.9042"
+              "high": "4.9042",
+              "low": "4.8657"
             }
           },
           {
@@ -521,8 +521,8 @@
             "unit": "ns",
             "range": "[59.3600 ns, 59.5300 ns]",
             "extra": {
-              "low": "59.3600",
-              "high": "59.5300"
+              "high": "59.5300",
+              "low": "59.3600"
             }
           },
           {
@@ -534,6 +534,167 @@
               "high": "545.7700",
               "low": "543.0500"
             }
+          }
+        ]
+      },
+      {
+        "commit": {
+          "id": "49f4d2e91c167499f4ad6e8af928316931764138",
+          "message": "togglers",
+          "timestamp": "2025-12-27T22:55:25Z",
+          "url": "https://github.com/fedemagnani/git-bench/commit/49f4d2e91c167499f4ad6e8af928316931764138",
+          "author": {
+            "name": "fedemagnani",
+            "email": "0xdrun@gmail.com",
+            "username": "fedemagnani"
+          }
+        },
+        "date": "2025-12-27T23:13:11.816190563Z",
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "arithmetic::sum_1000",
+            "value": 1.2444,
+            "unit": "ns",
+            "range": "[1.2433 ns, 1.2457 ns]",
+            "extra": {
+              "low": "1.2433",
+              "high": "1.2457"
+            }
+          },
+          {
+            "name": "arithmetic::sum_10000",
+            "value": 1.2442,
+            "unit": "ns",
+            "range": "[1.2435 ns, 1.2451 ns]",
+            "extra": {
+              "low": "1.2435",
+              "high": "1.2451"
+            }
+          },
+          {
+            "name": "arithmetic::product_10",
+            "value": 4.6715,
+            "unit": "ns",
+            "range": "[4.6614 ns, 4.6847 ns]",
+            "extra": {
+              "high": "4.6847",
+              "low": "4.6614"
+            }
+          },
+          {
+            "name": "arithmetic::product_15",
+            "value": 6.4486,
+            "unit": "ns",
+            "range": "[6.4470 ns, 6.4505 ns]",
+            "extra": {
+              "high": "6.4505",
+              "low": "6.4470"
+            }
+          },
+          {
+            "name": "fibonacci::fib_10",
+            "value": 136.31,
+            "unit": "ns",
+            "range": "[136.2300 ns, 136.4000 ns]",
+            "extra": {
+              "low": "136.2300",
+              "high": "136.4000"
+            }
+          },
+          {
+            "name": "fibonacci::fib_15",
+            "value": 1538.7,
+            "unit": "ns",
+            "range": "[1537.9000 ns, 1539.7000 ns]",
+            "extra": {
+              "high": "1539.7000",
+              "low": "1537.9000"
+            }
+          },
+          {
+            "name": "fibonacci::fib_20",
+            "value": 17132.0,
+            "unit": "ns",
+            "range": "[17123.0000 ns, 17145.0000 ns]",
+            "extra": {
+              "high": "17145.0000",
+              "low": "17123.0000"
+            }
+          },
+          {
+            "name": "sorting::sort_100",
+            "value": 60.899,
+            "unit": "ns",
+            "range": "[60.8050 ns, 60.9880 ns]",
+            "extra": {
+              "high": "60.9880",
+              "low": "60.8050"
+            }
+          },
+          {
+            "name": "sorting::sort_1000",
+            "value": 553.87,
+            "unit": "ns",
+            "range": "[549.6600 ns, 557.8200 ns]",
+            "extra": {
+              "low": "549.6600",
+              "high": "557.8200"
+            }
+          },
+          {
+            "name": "libtest::arithmetic::product_10",
+            "value": 4.86,
+            "unit": "ns/iter",
+            "range": "+/- 0.01"
+          },
+          {
+            "name": "libtest::arithmetic::product_15",
+            "value": 6.52,
+            "unit": "ns/iter",
+            "range": "+/- 0.02"
+          },
+          {
+            "name": "libtest::arithmetic::sum_1000",
+            "value": 1.36,
+            "unit": "ns/iter",
+            "range": "+/- 0.01"
+          },
+          {
+            "name": "libtest::arithmetic::sum_10000",
+            "value": 1.24,
+            "unit": "ns/iter",
+            "range": "+/- 0.01"
+          },
+          {
+            "name": "libtest::fibonacci::fib_10",
+            "value": 152.43,
+            "unit": "ns/iter",
+            "range": "+/- 0.77"
+          },
+          {
+            "name": "libtest::fibonacci::fib_15",
+            "value": 1722.66,
+            "unit": "ns/iter",
+            "range": "+/- 21.86"
+          },
+          {
+            "name": "libtest::fibonacci::fib_20",
+            "value": 19176.33,
+            "unit": "ns/iter",
+            "range": "+/- 540.21"
+          },
+          {
+            "name": "libtest::sorting::sort_100",
+            "value": 107.61,
+            "unit": "ns/iter",
+            "range": "+/- 1.00"
+          },
+          {
+            "name": "libtest::sorting::sort_1000",
+            "value": 989.25,
+            "unit": "ns/iter",
+            "range": "+/- 18.99"
           }
         ]
       }

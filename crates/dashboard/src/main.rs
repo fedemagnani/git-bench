@@ -421,7 +421,7 @@ fn Dashboard(data: BenchmarkData) -> Element {
     }
 }
 
-/// Left sidebar showing runs list
+/// Left sidebar showing runs list (collapsible)
 #[component]
 fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
@@ -432,6 +432,8 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
     let dark = *dark_mode.read();
 
     let mut search_query = use_signal(|| String::new());
+    let mut sidebar_expanded = use_signal(|| true);
+    let is_sidebar_expanded = *sidebar_expanded.read();
 
     // Build a map from run_idx to timestamp for constraint checking
     let timestamp_map: HashMap<usize, i64> =
@@ -450,35 +452,49 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
         })
         .collect();
 
+    let collapsed_style = if is_sidebar_expanded {
+        ""
+    } else {
+        "width: auto; min-width: auto;"
+    };
+
     rsx! {
-        aside { style: "{sidebar_style(dark)}",
-            // Search input
-            div { style: "padding: 0.75rem;",
-                input {
-                    style: "{search_input_style(dark)}",
-                    r#type: "text",
-                    placeholder: "Search commits...",
-                    value: "{search_query}",
-                    oninput: move |e| search_query.set(e.value())
+        aside { style: "{sidebar_style(dark)} {collapsed_style}",
+            // Collapsible header
+            div {
+                style: "{sidebar_toggle_style(dark)}",
+                onclick: move |_| sidebar_expanded.set(!is_sidebar_expanded),
+                span { style: "font-size: 0.8rem;",
+                    if is_sidebar_expanded { "◀" } else { "▶" }
+                }
+                if is_sidebar_expanded {
+                    span { style: "margin-left: 0.5rem; font-weight: 600;", "COMMITS" }
                 }
             }
 
-            // Runs header
-            div { style: "{sidebar_section_header(dark)}",
-                span { "Commits" }
-            }
+            if is_sidebar_expanded {
+                // Search input
+                div { style: "padding: 0.75rem;",
+                    input {
+                        style: "{search_input_style(dark)}",
+                        r#type: "text",
+                        placeholder: "Search commits...",
+                        value: "{search_query}",
+                        oninput: move |e| search_query.set(e.value())
+                    }
+                }
 
-            // Help text
-            div { style: "padding: 0.5rem 0.75rem; font-size: 0.7rem; {muted_style(dark)}",
-                "Click "
-                span { style: "opacity: 0.7;", "◉" }
-                " to set FROM or "
-                span { style: "opacity: 0.7;", "⇌" }
-                " to set TO"
-            }
+                // Help text
+                div { style: "padding: 0.5rem 0.75rem; font-size: 0.7rem; {muted_style(dark)}",
+                    "Click "
+                    span { style: "opacity: 0.7;", "◉" }
+                    " to set FROM or "
+                    span { style: "opacity: 0.7;", "⇌" }
+                    " to set TO"
+                }
 
-            // Runs list
-            div { style: "flex: 1; overflow-y: auto;",
+                // Runs list
+                div { style: "flex: 1; overflow-y: auto;",
                 for run in filtered_runs {
                     {
                         let run_idx = run.run_idx;
@@ -584,6 +600,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -594,6 +611,7 @@ fn RunsSidebar(runs: Vec<RunInfo>) -> Element {
 fn SuiteSection(suite_name: String, runs: Vec<BenchmarkRun>) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
     let dark = *dark_mode.read();
+    let mut expanded = use_signal(|| true);
 
     let hierarchy = build_hierarchy(&runs);
     let runs_info = extract_runs(&runs);
@@ -604,49 +622,50 @@ fn SuiteSection(suite_name: String, runs: Vec<BenchmarkRun>) -> Element {
             .get("_ungrouped")
             .map_or(false, |m| m.keys().any(|k| k != "_ungrouped"));
 
-    rsx! {
-        div { style: "margin-bottom: 2rem;",
-            // Suite title
-            h2 { style: "{suite_title_style(dark)}", "{suite_name}" }
+    let is_expanded = *expanded.read();
 
-                    if has_hierarchy {
-                        for (grandparent, parents) in hierarchy.iter() {
-                            if grandparent != "_ungrouped" {
-                                ModuleContainer {
-                                    key: "{grandparent}",
-                                    name: grandparent.clone(),
-                                    charts: parents.clone(),
+    rsx! {
+        div { style: "margin-bottom: 1rem;",
+            // No top-level suite title - charts are organized by hierarchy
+
+            if has_hierarchy {
+                for (grandparent, parents) in hierarchy.iter() {
+                    if grandparent != "_ungrouped" {
+                        ModuleContainer {
+                            key: "{grandparent}",
+                            name: grandparent.clone(),
+                            charts: parents.clone(),
                             runs: runs.clone(),
                             runs_info: runs_info.clone()
-                                }
-                            }
                         }
-                        // Handle 2-level hierarchy (parent/test) - render directly as charts
-                        if let Some(ungrouped) = hierarchy.get("_ungrouped") {
-                            for (parent_name, points) in ungrouped.iter() {
-                                if parent_name != "_ungrouped" {
-                            BenchmarkChart {
-                                        key: "{parent_name}",
-                                        name: parent_name.clone(),
+                    }
+                }
+                // Handle 2-level hierarchy (parent/test) - render directly as charts
+                if let Some(ungrouped) = hierarchy.get("_ungrouped") {
+                    for (parent_name, points) in ungrouped.iter() {
+                        if parent_name != "_ungrouped" {
+                            CollapsibleChart {
+                                key: "{parent_name}",
+                                name: parent_name.clone(),
                                 data_points: points.clone(),
                                 runs_info: runs_info.clone()
-                                    }
-                                }
-                            }
-                            // Truly ungrouped (single-level names)
-                            if let Some(truly_ungrouped) = ungrouped.get("_ungrouped") {
-                        BenchmarkChart {
-                                    name: "other".to_string(),
-                            data_points: truly_ungrouped.clone(),
-                            runs_info: runs_info.clone()
-                                }
                             }
                         }
-                    } else {
+                    }
+                    // Truly ungrouped (single-level names)
+                    if let Some(truly_ungrouped) = ungrouped.get("_ungrouped") {
+                        CollapsibleChart {
+                            name: "other".to_string(),
+                            data_points: truly_ungrouped.clone(),
+                            runs_info: runs_info.clone()
+                        }
+                    }
+                }
+            } else {
                 // Flat view when no hierarchy
                 for (_grandparent, parents) in hierarchy.iter() {
                     for (parent_name, points) in parents.iter() {
-                        BenchmarkChart {
+                        CollapsibleChart {
                             key: "{parent_name}",
                             name: if parent_name == "_ungrouped" { "benchmarks".to_string() } else { parent_name.clone() },
                             data_points: points.clone(),
@@ -659,7 +678,7 @@ fn SuiteSection(suite_name: String, runs: Vec<BenchmarkRun>) -> Element {
     }
 }
 
-/// Module container - groups multiple charts under a grandparent module
+/// Module container - groups multiple charts under a grandparent module (collapsible)
 #[component]
 fn ModuleContainer(
     name: String,
@@ -669,31 +688,84 @@ fn ModuleContainer(
 ) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
     let dark = *dark_mode.read();
+    let mut expanded = use_signal(|| true);
+    let is_expanded = *expanded.read();
 
     rsx! {
         div { style: "{container_card_style(dark)}",
-            // Container header
-            div { style: "{container_header_style(dark)}",
+            // Collapsible container header
+            div {
+                style: "{collapsible_header_style(dark)}",
+                onclick: move |_| expanded.set(!is_expanded),
+                span { style: "margin-right: 0.5rem; font-size: 0.8rem;",
+                    if is_expanded { "▼" } else { "▶" }
+                }
                 span { style: "{container_title_style(dark)}", "{name}" }
             }
 
-            div { style: "padding: 1rem;",
+            if is_expanded {
+                div { style: "padding: 1rem;",
                     for (parent_name, points) in charts.iter() {
                         if parent_name != "_ungrouped" {
-                        BenchmarkChart {
+                            CollapsibleChart {
                                 key: "{parent_name}",
                                 name: parent_name.clone(),
-                            data_points: points.clone(),
-                            runs_info: runs_info.clone()
+                                data_points: points.clone(),
+                                runs_info: runs_info.clone()
                             }
                         }
                     }
                     if let Some(ungrouped_points) = charts.get("_ungrouped") {
-                    BenchmarkChart {
+                        CollapsibleChart {
                             name: "other".to_string(),
-                        data_points: ungrouped_points.clone(),
-                        runs_info: runs_info.clone()
+                            data_points: ungrouped_points.clone(),
+                            runs_info: runs_info.clone()
+                        }
                     }
+                }
+            }
+        }
+    }
+}
+
+/// Collapsible chart wrapper
+#[component]
+fn CollapsibleChart(
+    name: String,
+    data_points: Vec<BenchmarkDataPoint>,
+    runs_info: Vec<RunInfo>,
+) -> Element {
+    let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
+    let dark = *dark_mode.read();
+    let mut expanded = use_signal(|| true);
+    let is_expanded = *expanded.read();
+
+    // Get unit from first data point
+    let unit = data_points
+        .first()
+        .map(|p| p.unit.clone())
+        .unwrap_or_default();
+
+    rsx! {
+        div { style: "{chart_card_style(dark)} margin-bottom: 1rem;",
+            // Collapsible chart header
+            div {
+                style: "{collapsible_chart_header_style(dark)}",
+                onclick: move |_| expanded.set(!is_expanded),
+                div { style: "display: flex; align-items: center; gap: 0.5rem;",
+                    span { style: "font-size: 0.7rem; opacity: 0.7;",
+                        if is_expanded { "▼" } else { "▶" }
+                    }
+                    span { style: "{chart_name_style(dark)}", "{name}" }
+                    span { style: "{unit_style(dark)}", "{unit}" }
+                }
+            }
+
+            if is_expanded {
+                BenchmarkChart {
+                    name: name.clone(),
+                    data_points: data_points,
+                    runs_info: runs_info
                 }
             }
         }
@@ -844,26 +916,20 @@ fn BenchmarkChart(
     });
 
     rsx! {
-        div { style: "{chart_card_style(dark)}",
-            // Chart header
-            div { style: "{chart_header_style(dark)}",
-                div { style: "display: flex; align-items: center; gap: 0.5rem;",
-                    span { style: "{chart_title_style(dark)}", "{name}" }
-                    span { style: "{unit_badge_style(dark)}", "{unit}" }
-                }
-                if let Some(run) = &last_run {
-                    span { style: "font-size: 0.75rem; {muted_style(dark)}",
-                        "Modified: {run.date} by "
-                        if let Some(username) = &run.author_username {
-                            a {
-                                href: "https://github.com/{username}",
-                                target: "_blank",
-                                style: "{commit_hash_link_style(dark)}",
-                                "{run.author}"
-                            }
-                        } else {
+        div {
+            // Last modified info
+            if let Some(run) = &last_run {
+                div { style: "text-align: right; font-size: 0.7rem; padding: 0.25rem 0.5rem; {muted_style(dark)}",
+                    "Modified: {run.date} by "
+                    if let Some(username) = &run.author_username {
+                        a {
+                            href: "https://github.com/{username}",
+                            target: "_blank",
+                            style: "{commit_hash_link_style(dark)}",
                             "{run.author}"
                         }
+                    } else {
+                        "{run.author}"
                     }
                 }
             }
@@ -1258,7 +1324,7 @@ fn ChartSvg(
                                         span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
                                         span { style: "color: {color};", "{test_name}" }
                                         span { style: "font-weight: 500;", " : " }
-                                        span { "{value:.0}" }
+                                        span { "{value:.2}" }
                                     }
                                 }
                             }
@@ -1305,17 +1371,13 @@ fn generate_line_path_v2(
 
 fn format_value(value: f64) -> String {
     if value >= 1_000_000_000.0 {
-        format!("{:.1}G", value / 1_000_000_000.0)
+        format!("{:.2}G", value / 1_000_000_000.0)
     } else if value >= 1_000_000.0 {
-        format!("{:.1}M", value / 1_000_000.0)
+        format!("{:.2}M", value / 1_000_000.0)
     } else if value >= 1_000.0 {
-        format!("{:.1}K", value / 1_000.0)
-    } else if value >= 1.0 {
-        format!("{:.0}", value)
-    } else if value >= 0.001 {
-        format!("{:.2}", value)
+        format!("{:.2}K", value / 1_000.0)
     } else {
-        format!("{:.3}", value)
+        format!("{:.2}", value)
     }
 }
 
