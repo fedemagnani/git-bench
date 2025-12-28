@@ -1,113 +1,117 @@
-   Compiling git-bench-workspace v0.1.0 (/Users/0xdrun/git-bench)
-    Finished `bench` profile [optimized] target(s) in 0.82s
+    Finished `bench` profile [optimized] target(s) in 0.03s
      Running benches/criterion.rs (target/release/deps/criterion-5c365115b328fe20)
 Gnuplot not found, using plotters backend
 Benchmarking arithmetic::sum_1000
 Benchmarking arithmetic::sum_1000: Warming up for 3.0000 s
-Benchmarking arithmetic::sum_1000: Collecting 100 samples in estimated 5.0000 s (6.3B iterations)
+Benchmarking arithmetic::sum_1000: Collecting 100 samples in estimated 5.0000 s (6.4B iterations)
 Benchmarking arithmetic::sum_1000: Analyzing
-arithmetic::sum_1000    time:   [789.50 ps 792.31 ps 795.91 ps]
-                        change: [-1.8887% -1.5165% -1.1262%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 15 outliers among 100 measurements (15.00%)
-  7 (7.00%) high mild
-  8 (8.00%) high severe
+arithmetic::sum_1000    time:   [779.72 ps 783.57 ps 788.57 ps]
+                        change: [-1.3115% -0.4509% +0.4354%] (p = 0.34 > 0.05)
+                        No change in performance detected.
+Found 18 outliers among 100 measurements (18.00%)
+  5 (5.00%) high mild
+  13 (13.00%) high severe
 
 Benchmarking arithmetic::sum_10000
 Benchmarking arithmetic::sum_10000: Warming up for 3.0000 s
-Benchmarking arithmetic::sum_10000: Collecting 100 samples in estimated 5.0000 s (6.2B iterations)
+Benchmarking arithmetic::sum_10000: Collecting 100 samples in estimated 5.0000 s (6.3B iterations)
 Benchmarking arithmetic::sum_10000: Analyzing
-arithmetic::sum_10000   time:   [803.72 ps 813.01 ps 823.35 ps]
-                        change: [-1.7446% -0.9679% -0.1698%] (p = 0.02 < 0.05)
-                        Change within noise threshold.
-Found 7 outliers among 100 measurements (7.00%)
-  4 (4.00%) high mild
-  3 (3.00%) high severe
+arithmetic::sum_10000   time:   [779.61 ps 781.00 ps 782.60 ps]
+                        change: [-0.2543% +0.0770% +0.3843%] (p = 0.66 > 0.05)
+                        No change in performance detected.
+Found 12 outliers among 100 measurements (12.00%)
+  5 (5.00%) high mild
+  7 (7.00%) high severe
 
 Benchmarking arithmetic::product_10
 Benchmarking arithmetic::product_10: Warming up for 3.0000 s
-Benchmarking arithmetic::product_10: Collecting 100 samples in estimated 5.0000 s (3.5B iterations)
+Benchmarking arithmetic::product_10: Collecting 100 samples in estimated 5.0000 s (3.6B iterations)
 Benchmarking arithmetic::product_10: Analyzing
-arithmetic::product_10  time:   [1.4184 ns 1.4268 ns 1.4376 ns]
-                        change: [-0.9563% +0.0274% +1.0339%] (p = 0.96 > 0.05)
-                        No change in performance detected.
-Found 13 outliers among 100 measurements (13.00%)
-  10 (10.00%) high mild
-  3 (3.00%) high severe
+arithmetic::product_10  time:   [1.3953 ns 1.4028 ns 1.4116 ns]
+                        change: [+0.8540% +1.4314% +2.0009%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 6 outliers among 100 measurements (6.00%)
+  2 (2.00%) low mild
+  3 (3.00%) high mild
+  1 (1.00%) high severe
 
 Benchmarking arithmetic::product_15
 Benchmarking arithmetic::product_15: Warming up for 3.0000 s
-Benchmarking arithmetic::product_15: Collecting 100 samples in estimated 5.0000 s (2.3B iterations)
+Benchmarking arithmetic::product_15: Collecting 100 samples in estimated 5.0000 s (2.4B iterations)
 Benchmarking arithmetic::product_15: Analyzing
-arithmetic::product_15  time:   [2.1427 ns 2.1553 ns 2.1705 ns]
-                        change: [-3.1658% -1.5012% -0.3018%] (p = 0.03 < 0.05)
+arithmetic::product_15  time:   [2.0947 ns 2.1035 ns 2.1133 ns]
+                        change: [+0.1198% +0.7105% +1.2706%] (p = 0.02 < 0.05)
+                        Change within noise threshold.
+Found 8 outliers among 100 measurements (8.00%)
+  4 (4.00%) low mild
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking fibonacci::fib_10
+Benchmarking fibonacci::fib_10: Warming up for 3.0000 s
+Benchmarking fibonacci::fib_10: Collecting 100 samples in estimated 5.0001 s (63M iterations)
+Benchmarking fibonacci::fib_10: Analyzing
+fibonacci::fib_10       time:   [79.431 ns 80.005 ns 80.666 ns]
+                        change: [+0.5086% +1.4785% +2.4513%] (p = 0.00 < 0.05)
                         Change within noise threshold.
 Found 9 outliers among 100 measurements (9.00%)
   4 (4.00%) high mild
   5 (5.00%) high severe
 
-Benchmarking fibonacci::fib_10
-Benchmarking fibonacci::fib_10: Warming up for 3.0000 s
-Benchmarking fibonacci::fib_10: Collecting 100 samples in estimated 5.0002 s (61M iterations)
-Benchmarking fibonacci::fib_10: Analyzing
-fibonacci::fib_10       time:   [80.808 ns 81.628 ns 82.843 ns]
-                        change: [-3.3742% -2.5171% -1.6100%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 7 outliers among 100 measurements (7.00%)
-  6 (6.00%) high mild
-  1 (1.00%) high severe
-
 Benchmarking fibonacci::fib_15
 Benchmarking fibonacci::fib_15: Warming up for 3.0000 s
-Benchmarking fibonacci::fib_15: Collecting 100 samples in estimated 5.0036 s (5.3M iterations)
+Benchmarking fibonacci::fib_15: Collecting 100 samples in estimated 5.0026 s (5.3M iterations)
 Benchmarking fibonacci::fib_15: Analyzing
-fibonacci::fib_15       time:   [937.02 ns 943.19 ns 950.02 ns]
-                        change: [-3.1317% -2.5000% -1.8322%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 5 outliers among 100 measurements (5.00%)
-  4 (4.00%) high mild
+fibonacci::fib_15       time:   [934.57 ns 944.20 ns 957.49 ns]
+                        change: [+1.0339% +1.8546% +2.6286%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
   1 (1.00%) high severe
 
 Benchmarking fibonacci::fib_20
 Benchmarking fibonacci::fib_20: Warming up for 3.0000 s
-Benchmarking fibonacci::fib_20: Collecting 100 samples in estimated 5.0096 s (475k iterations)
+Benchmarking fibonacci::fib_20: Collecting 100 samples in estimated 5.0403 s (475k iterations)
 Benchmarking fibonacci::fib_20: Analyzing
-fibonacci::fib_20       time:   [10.571 µs 10.614 µs 10.658 µs]
-                        change: [-3.0587% -2.4784% -1.9281%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 3 outliers among 100 measurements (3.00%)
-  3 (3.00%) high mild
+fibonacci::fib_20       time:   [10.622 µs 10.694 µs 10.768 µs]
+                        change: [+2.9920% +3.7074% +4.3899%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
 
 Benchmarking sorting::sort_100
 Benchmarking sorting::sort_100: Warming up for 3.0000 s
-Benchmarking sorting::sort_100: Collecting 100 samples in estimated 5.0004 s (24M iterations)
+Benchmarking sorting::sort_100: Collecting 100 samples in estimated 5.0002 s (25M iterations)
 Benchmarking sorting::sort_100: Analyzing
-sorting::sort_100       time:   [39.078 ns 39.605 ns 40.053 ns]
-                        change: [-1.5483% +0.2605% +2.0367%] (p = 0.78 > 0.05)
-                        No change in performance detected.
+sorting::sort_100       time:   [35.942 ns 36.118 ns 36.298 ns]
+                        change: [+0.6010% +2.1259% +3.5814%] (p = 0.00 < 0.05)
+                        Change within noise threshold.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
 
 Benchmarking sorting::sort_1000
 Benchmarking sorting::sort_1000: Warming up for 3.0000 s
-Benchmarking sorting::sort_1000: Collecting 100 samples in estimated 5.0017 s (4.4M iterations)
+Benchmarking sorting::sort_1000: Collecting 100 samples in estimated 5.0031 s (4.5M iterations)
 Benchmarking sorting::sort_1000: Analyzing
-sorting::sort_1000      time:   [324.98 ns 327.23 ns 329.83 ns]
-                        change: [-3.2916% -2.6999% -2.1247%] (p = 0.00 < 0.05)
-                        Performance has improved.
-Found 1 outliers among 100 measurements (1.00%)
-  1 (1.00%) high mild
+sorting::sort_1000      time:   [329.51 ns 332.66 ns 336.43 ns]
+                        change: [+2.3702% +3.3062% +4.1921%] (p = 0.00 < 0.05)
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
 
      Running benches/libtest.rs (target/release/deps/libtest-14db805e112bb65b)
 
 running 9 tests
-test libtest::arithmetic::product_10 ... bench:           1.37 ns/iter (+/- 0.02)
-test libtest::arithmetic::product_15 ... bench:           2.07 ns/iter (+/- 0.06)
+test libtest::arithmetic::product_10 ... bench:           1.38 ns/iter (+/- 0.04)
+test libtest::arithmetic::product_15 ... bench:           2.05 ns/iter (+/- 0.10)
 test libtest::arithmetic::sum_1000   ... bench:           0.36 ns/iter (+/- 0.01)
 test libtest::arithmetic::sum_10000  ... bench:           0.36 ns/iter (+/- 0.01)
-test libtest::fibonacci::fib_10      ... bench:          81.40 ns/iter (+/- 5.70)
-test libtest::fibonacci::fib_15      ... bench:         995.99 ns/iter (+/- 87.18)
-test libtest::fibonacci::fib_20      ... bench:      10,630.56 ns/iter (+/- 901.76)
-test libtest::sorting::sort_100      ... bench:          73.37 ns/iter (+/- 2.95)
-test libtest::sorting::sort_1000     ... bench:         406.67 ns/iter (+/- 57.21)
+test libtest::fibonacci::fib_10      ... bench:          81.36 ns/iter (+/- 6.31)
+test libtest::fibonacci::fib_15      ... bench:         943.76 ns/iter (+/- 61.14)
+test libtest::fibonacci::fib_20      ... bench:      10,565.57 ns/iter (+/- 1,395.69)
+test libtest::sorting::sort_100      ... bench:          73.93 ns/iter (+/- 3.73)
+test libtest::sorting::sort_1000     ... bench:         410.26 ns/iter (+/- 18.06)
 
-test result: ok. 0 passed; 0 failed; 0 ignored; 9 measured; 0 filtered out; finished in 24.22s
+test result: ok. 0 passed; 0 failed; 0 ignored; 9 measured; 0 filtered out; finished in 35.31s
 
