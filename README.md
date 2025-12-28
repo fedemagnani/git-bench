@@ -15,7 +15,10 @@ This runs the project's own benchmarks and serves the dashboard at `http://local
 
 Copy [`.github/workflows/benchmark-example.yml`](.github/workflows/benchmark-example.yml) to your project's `.github/workflows/` directory.
 
-Dashboard will be available at `https://<username>.github.io/<repo>/dev/bench/`.
+Once the run first will be complete, the `gh-pages` branch should have been created: Go to 
+`Settings > Pages > Select 'Deploy From branch' in Source > Select 'gh-page' in branch`
+
+Now dashboard should be available at `https://<username>.github.io/<repo>/dev/bench/`.
 
 ## Dashboard Features
 
