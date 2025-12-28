@@ -132,6 +132,32 @@ pub fn toggle_btn_style(dark: bool) -> String {
     )
 }
 
+/// Generate footer style
+pub fn footer_style(dark: bool) -> String {
+    let border = border_color(dark);
+    let muted = muted_color(dark);
+    format!(
+        "display: flex; \
+         justify-content: center; \
+         align-items: center; \
+         gap: 0.25rem; \
+         padding: 0.75rem 1rem; \
+         border-top: 1px solid {border}; \
+         font-size: 0.75rem; \
+         color: {muted};"
+    )
+}
+
+/// Footer link style
+pub fn footer_link_style(dark: bool) -> String {
+    let accent = accent_color(dark);
+    format!(
+        "color: {accent}; \
+         text-decoration: none; \
+         font-weight: 500;"
+    )
+}
+
 /// Sidebar style
 pub fn sidebar_style(dark: bool) -> String {
     let border = border_color(dark);
