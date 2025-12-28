@@ -2,14 +2,11 @@
 
 Track and visualize Rust benchmark performance across commits. Deploys an interactive WASM dashboard to GitHub Pages.
 
-## Quick Demo
+## Dashboard Features
 
-```bash
-# Build and run the demo dashboard locally (dogfooding git-bench on itself)
-make demo
-```
-
-This runs the project's own benchmarks and serves the dashboard at `http://localhost:8080` (make sure it is not already in use).
+- Criterion and libtest support via hierarchical grouping (`grandparent::parent::test`)
+- FROM/TO commit comparison with metrics table
+- GitHub links for commits and authors
 
 ## GitHub Actions
 
@@ -20,11 +17,15 @@ Once the run first will be complete, the `gh-pages` branch should have been crea
 
 Now dashboard should be available at `https://<username>.github.io/<repo>/dev/bench/`.
 
-## Dashboard Features
+## Quick Demo
+A live demo can be found at https://fedemagnani.github.io/git-bench/dev/bench/
 
-- Criterion and libtest support via hierarchical grouping (`grandparent::parent::test`)
-- FROM/TO commit comparison with metrics table
-- GitHub links for commits and authors
+To run a local demo of the crate:
+```bash
+# Build and run the demo dashboard locally (dogfooding git-bench on itself)
+make demo
+```
+This runs the project's own benchmarks and serves the dashboard at `http://localhost:8080` (make sure it is not already in use).
 
 ## CLI Options
 
