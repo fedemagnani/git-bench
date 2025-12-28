@@ -28,6 +28,10 @@ use styles::*;
 #[derive(Clone, Copy)]
 struct ThemeCtx(Signal<bool>);
 
+/// Global benchmark name context
+#[derive(Clone)]
+struct BenchNameCtx(Signal<String>);
+
 /// Global selection context for from/to commit comparison
 #[derive(Clone, Copy)]
 struct SelectionCtx {
@@ -241,6 +245,10 @@ fn App() -> Element {
     let dark_mode = use_signal(|| true);
     use_context_provider(|| ThemeCtx(dark_mode));
 
+    // Benchmark name state (extracted from data)
+    let mut bench_name = use_signal(|| "Benchmarks".to_string());
+    use_context_provider(|| BenchNameCtx(bench_name));
+
     // Selection state for from/to (indices into runs list)
     // Will be initialized with defaults when data loads
     let from_idx = use_signal(|| None::<usize>);
@@ -255,6 +263,10 @@ fn App() -> Element {
         spawn(async move {
             match load_benchmark_data().await {
                 Ok(benchmark_data) => {
+                    // Extract first suite name for the header
+                    if let Some(name) = benchmark_data.entries.keys().next() {
+                        bench_name.set(name.clone());
+                    }
                     data.set(Some(benchmark_data));
                     loading.set(false);
                 }
@@ -297,6 +309,8 @@ fn App() -> Element {
                     }
                 }
             }
+
+            Footer {}
         }
     }
 }
@@ -304,13 +318,15 @@ fn App() -> Element {
 #[component]
 fn Header() -> Element {
     let ThemeCtx(mut dark_mode) = use_context::<ThemeCtx>();
+    let BenchNameCtx(bench_name) = use_context::<BenchNameCtx>();
     let dark = *dark_mode.read();
+    let name = bench_name.read();
 
     rsx! {
         header { style: "{header_style(dark)}",
             div { style: "display: flex; align-items: center; gap: 0.5rem;",
                 span { style: "font-size: 1.2rem;", "⑂" }
-            h1 { style: "{title_style(dark)}", "git-bench" }
+                h1 { style: "{title_style(dark)}", "{name} benchmarks" }
             }
             button {
                 style: "{toggle_btn_style(dark)}",
@@ -319,6 +335,28 @@ fn Header() -> Element {
                     dark_mode.set(!current);
                 },
                 if dark { "☀ light" } else { "☾ dark" }
+            }
+        }
+    }
+}
+
+#[component]
+fn Footer() -> Element {
+    let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
+    let dark = *dark_mode.read();
+
+    rsx! {
+        footer { style: "{footer_style(dark)}",
+            span {
+                "Made with "
+                span { style: "color: #ff6b6b;", "❤" }
+                " by "
+                a {
+                    href: "https://github.com/fedemagnani/git-bench",
+                    target: "_blank",
+                    style: "{footer_link_style(dark)}",
+                    "git-bench"
+                }
             }
         }
     }
