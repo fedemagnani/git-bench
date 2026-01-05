@@ -1378,47 +1378,50 @@ fn ChartSvg(
 
     rsx! {
         div {
-            style: "padding: 0.5rem; position: relative; cursor: crosshair;",
-            onmounted: move |evt| {
-                let mounted_data = evt.data().clone();
-                spawn(async move {
-                    if let Ok(rect) = mounted_data.get_client_rect().await {
-                        chart_div_width.set(rect.width());
-                    }
-                });
-            },
-            onmouseleave: move |_| hovered_commit.set(None),
-            onmousemove: move |e| {
-                let coords = e.data().element_coordinates();
-                let element_x = coords.x;
-                let div_width = *chart_div_width.read();
-
-                if div_width > 0.0 && num_commits > 0 {
-                    let fraction = element_x / div_width;
-                    let chart_start = padding_ratio_left;
-                    let chart_end = 1.0 - padding_ratio_right;
-
-                    if fraction >= chart_start && fraction <= chart_end {
-                        let chart_fraction = (fraction - chart_start) / (chart_end - chart_start);
-                        if num_commits > 1 {
-                            let commit_idx = (chart_fraction * (num_commits - 1) as f64).round() as usize;
-                            let clamped_idx = commit_idx.min(num_commits.saturating_sub(1));
-                            hovered_commit.set(Some(clamped_idx));
-                        } else {
-                            hovered_commit.set(Some(0));
+            style: "padding: 0.5rem; position: relative;",
+            // Inner wrapper with constrained aspect ratio for proper mouse coordinate mapping
+            div {
+                style: "width: 100%; max-width: 600px; aspect-ratio: 3 / 1; position: relative; cursor: crosshair; margin: 0 auto;",
+                onmounted: move |evt| {
+                    let mounted_data = evt.data().clone();
+                    spawn(async move {
+                        if let Ok(rect) = mounted_data.get_client_rect().await {
+                            chart_div_width.set(rect.width());
                         }
-                    } else if fraction < chart_start {
-                        hovered_commit.set(Some(0));
-                    } else {
-                        hovered_commit.set(Some(num_commits - 1));
-                    }
-                }
-            },
+                    });
+                },
+                onmouseleave: move |_| hovered_commit.set(None),
+                onmousemove: move |e| {
+                    let coords = e.data().element_coordinates();
+                    let element_x = coords.x;
+                    let div_width = *chart_div_width.read();
 
-            svg {
-                style: "width: 100%; height: auto; max-height: 200px; pointer-events: none;",
-                view_box: "0 0 {chart_width} {chart_height}",
-                "preserveAspectRatio": "xMidYMid meet",
+                    if div_width > 0.0 && num_commits > 0 {
+                        let fraction = element_x / div_width;
+                        let chart_start = padding_ratio_left;
+                        let chart_end = 1.0 - padding_ratio_right;
+
+                        if fraction >= chart_start && fraction <= chart_end {
+                            let chart_fraction = (fraction - chart_start) / (chart_end - chart_start);
+                            if num_commits > 1 {
+                                let commit_idx = (chart_fraction * (num_commits - 1) as f64).round() as usize;
+                                let clamped_idx = commit_idx.min(num_commits.saturating_sub(1));
+                                hovered_commit.set(Some(clamped_idx));
+                            } else {
+                                hovered_commit.set(Some(0));
+                            }
+                        } else if fraction < chart_start {
+                            hovered_commit.set(Some(0));
+                        } else {
+                            hovered_commit.set(Some(num_commits - 1));
+                        }
+                    }
+                },
+
+                svg {
+                    style: "width: 100%; height: 100%; pointer-events: none;",
+                    view_box: "0 0 {chart_width} {chart_height}",
+                    "preserveAspectRatio": "xMidYMid meet",
 
                 // Horizontal grid lines
                 for i in 0..5 {
@@ -1591,6 +1594,7 @@ fn ChartSvg(
                         }
                     }
                 }
+            }
             }
         }
     }
