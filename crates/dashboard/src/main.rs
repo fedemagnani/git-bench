@@ -819,6 +819,15 @@ struct CommitTooltipData {
     values: Vec<(String, f64, String, String)>,
 }
 
+/// Sort column for metrics comparison table
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MetricsSortColumn {
+    Variant,
+    From,
+    To,
+    Change,
+}
+
 /// Main benchmark chart component
 #[component]
 fn BenchmarkChart(
@@ -834,6 +843,9 @@ fn BenchmarkChart(
     let mut hovered_commit: Signal<Option<usize>> = use_signal(|| None);
     // Track if metrics comparison is expanded
     let mut metrics_expanded = use_signal(|| true);
+    // Track sort column and direction for metrics table
+    let mut sort_column = use_signal(|| MetricsSortColumn::To);
+    let mut sort_ascending = use_signal(|| true);
 
     // Build series data
     let mut series: BTreeMap<String, Vec<(String, f64)>> = BTreeMap::new();
@@ -890,7 +902,7 @@ fn BenchmarkChart(
     let commits_tooltip: Vec<CommitTooltipData> = chart_commits
         .iter()
         .map(|commit_id| {
-            let values: Vec<(String, f64, String, String)> = test_names
+            let mut values: Vec<(String, f64, String, String)> = test_names
                 .iter()
                 .filter_map(|test_name| {
                     points_by_test_and_commit
@@ -905,6 +917,8 @@ fn BenchmarkChart(
                         })
                 })
                 .collect();
+            // Sort by value ascending (lowest first)
+            values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
             CommitTooltipData {
                 commit_id: commit_id.clone(),
@@ -1019,41 +1033,128 @@ fn BenchmarkChart(
                     }
 
                     if *metrics_expanded.read() {
-                        div { style: "margin-top: 0.5rem;",
-                            // Table header
-                            div { style: "{metrics_table_header_style(dark)}",
-                                span { style: "flex: 2;", "Variant" }
-                                span { style: "flex: 1; text-align: right;", "From" }
-                                span { style: "flex: 1; text-align: right;", "To" }
-                                span { style: "flex: 1; text-align: right;", "Change" }
-                            }
+                        {
+                            // Sort the metrics comparison data
+                            let current_sort_col = *sort_column.read();
+                            let is_ascending = *sort_ascending.read();
+                            let mut sorted_metrics = metrics_comparison.clone();
+                            sorted_metrics.sort_by(|a, b| {
+                                let cmp = match current_sort_col {
+                                    MetricsSortColumn::Variant => a.0.cmp(&b.0),
+                                    MetricsSortColumn::From => {
+                                        let a_val = a.1.unwrap_or(f64::MAX);
+                                        let b_val = b.1.unwrap_or(f64::MAX);
+                                        a_val.partial_cmp(&b_val).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                    MetricsSortColumn::To => {
+                                        a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                    MetricsSortColumn::Change => {
+                                        a.3.partial_cmp(&b.3).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                };
+                                if is_ascending { cmp } else { cmp.reverse() }
+                            });
 
-                            // Table rows
-                            for (test_name, from_value, to_value, change_pct, color) in metrics_comparison.iter() {
-                                {
-                                    let pct_color = change_color(dark, *change_pct);
-                                    rsx! {
-                                        div { style: "{metrics_table_row_style(dark)}",
-                                            div { style: "flex: 2; display: flex; align-items: center; gap: 0.4rem;",
-                                                span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
-                                                span { "{test_name}" }
-                                            }
-                                            span {
-                                                style: "flex: 1; text-align: right; {muted_style(dark)}",
-                                                {
-                                                    match from_value {
-                                                        Some(v) => format!("{:.2}", v),
-                                                        None => "—".to_string(),
+                            // Helper to get sort indicator
+                            let sort_indicator = |col: MetricsSortColumn| -> &'static str {
+                                if current_sort_col == col {
+                                    if is_ascending { " ▲" } else { " ▼" }
+                                } else {
+                                    ""
+                                }
+                            };
+
+                            rsx! {
+                                div { style: "margin-top: 0.5rem;",
+                                    // Table header (clickable)
+                                    div { style: "{metrics_table_header_style(dark)}",
+                                        span {
+                                            style: "flex: 2; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::Variant {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::Variant);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "Variant{sort_indicator(MetricsSortColumn::Variant)}"
+                                        }
+                                        span {
+                                            style: "flex: 1; text-align: right; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::From {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::From);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "From{sort_indicator(MetricsSortColumn::From)}"
+                                        }
+                                        span {
+                                            style: "flex: 1; text-align: right; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::To {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::To);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "To{sort_indicator(MetricsSortColumn::To)}"
+                                        }
+                                        span {
+                                            style: "flex: 1; text-align: right; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::Change {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::Change);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "Change{sort_indicator(MetricsSortColumn::Change)}"
+                                        }
+                                    }
+
+                                    // Table rows
+                                    for (test_name, from_value, to_value, change_pct, color) in sorted_metrics.iter() {
+                                        {
+                                            let pct_color = change_color(dark, *change_pct);
+                                            rsx! {
+                                                div { style: "{metrics_table_row_style(dark)}",
+                                                    div { style: "flex: 2; display: flex; align-items: center; gap: 0.4rem;",
+                                                        span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
+                                                        span { "{test_name}" }
+                                                    }
+                                                    span {
+                                                        style: "flex: 1; text-align: right; {muted_style(dark)}",
+                                                        {
+                                                            match from_value {
+                                                                Some(v) => format!("{:.2}", v),
+                                                                None => "—".to_string(),
+                                                            }
+                                                        }
+                                                    }
+                                                    span {
+                                                        style: "flex: 1; text-align: right;",
+                                                        "{to_value:.2}"
+                                                    }
+                                                    span {
+                                                        style: "flex: 1; text-align: right; font-weight: 500; color: {pct_color};",
+                                                        "{format_change(*change_pct)}"
                                                     }
                                                 }
-                                            }
-                                            span {
-                                                style: "flex: 1; text-align: right;",
-                                                "{to_value:.2}"
-                                            }
-                                            span {
-                                                style: "flex: 1; text-align: right; font-weight: 500; color: {pct_color};",
-                                                "{format_change(*change_pct)}"
                                             }
                                         }
                                     }
