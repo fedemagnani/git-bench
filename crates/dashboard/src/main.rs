@@ -819,6 +819,15 @@ struct CommitTooltipData {
     values: Vec<(String, f64, String, String)>,
 }
 
+/// Sort column for metrics comparison table
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MetricsSortColumn {
+    Variant,
+    From,
+    To,
+    Change,
+}
+
 /// Main benchmark chart component
 #[component]
 fn BenchmarkChart(
@@ -834,6 +843,9 @@ fn BenchmarkChart(
     let mut hovered_commit: Signal<Option<usize>> = use_signal(|| None);
     // Track if metrics comparison is expanded
     let mut metrics_expanded = use_signal(|| true);
+    // Track sort column and direction for metrics table
+    let mut sort_column = use_signal(|| MetricsSortColumn::To);
+    let mut sort_ascending = use_signal(|| true);
 
     // Build series data
     let mut series: BTreeMap<String, Vec<(String, f64)>> = BTreeMap::new();
@@ -880,29 +892,21 @@ fn BenchmarkChart(
     let num_commits = chart_commits.len();
 
     // Build tooltip data for each commit position
-    let mut points_by_test: BTreeMap<String, Vec<&BenchmarkDataPoint>> = BTreeMap::new();
+    // Index data points by (test_name, commit_id) for O(1) lookup
+    let mut points_by_test_and_commit: HashMap<(&str, &str), &BenchmarkDataPoint> = HashMap::new();
     for point in &data_points {
-        points_by_test
-            .entry(point.test_name.clone())
-            .or_default()
-            .push(point);
+        points_by_test_and_commit.insert((&point.test_name, &point.commit_id), point);
     }
 
-    let num_points = series.values().next().map_or(0, |v| v.len());
-    let commits_tooltip: Vec<CommitTooltipData> = (0..num_points)
-        .map(|idx| {
-            let reference_point = points_by_test
-                .values()
-                .next()
-                .and_then(|pts| pts.get(idx))
-                .expect("should have data point");
-
-            let values: Vec<(String, f64, String, String)> = test_names
+    // Build tooltip for each commit in chart_commits order
+    let commits_tooltip: Vec<CommitTooltipData> = chart_commits
+        .iter()
+        .map(|commit_id| {
+            let mut values: Vec<(String, f64, String, String)> = test_names
                 .iter()
                 .filter_map(|test_name| {
-                    points_by_test
-                        .get(test_name)
-                        .and_then(|pts| pts.get(idx))
+                    points_by_test_and_commit
+                        .get(&(test_name.as_str(), commit_id.as_str()))
                         .map(|p| {
                             (
                                 p.test_name.clone(),
@@ -913,11 +917,12 @@ fn BenchmarkChart(
                         })
                 })
                 .collect();
+            // Sort by value ascending (lowest first)
+            values.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
             CommitTooltipData {
-                commit_id: reference_point.commit_id.clone(),
-                commit_short: reference_point.commit_id[..7.min(reference_point.commit_id.len())]
-                    .to_string(),
+                commit_id: commit_id.clone(),
+                commit_short: commit_id[..7.min(commit_id.len())].to_string(),
                 values,
             }
         })
@@ -927,13 +932,27 @@ fn BenchmarkChart(
     let last_run = runs_info.last().cloned();
 
     // Calculate metrics comparison (from vs to or latest vs previous)
+    // Convert run indices to commit IDs for proper lookup
     let from_selection = *from_idx.read();
     let to_selection = *to_idx.read();
+    let from_commit_id: Option<String> = from_selection.and_then(|run_i| {
+        runs_info
+            .iter()
+            .find(|r| r.run_idx == run_i)
+            .map(|r| r.commit_id.clone())
+    });
+    let to_commit_id: Option<String> = to_selection.and_then(|run_i| {
+        runs_info
+            .iter()
+            .find(|r| r.run_idx == run_i)
+            .map(|r| r.commit_id.clone())
+    });
     let metrics_comparison = calculate_metrics_comparison(
         &data_points,
         &test_names,
-        from_selection,
-        to_selection,
+        &chart_commits,
+        from_commit_id.as_deref(),
+        to_commit_id.as_deref(),
         dark,
     );
 
@@ -1014,41 +1033,128 @@ fn BenchmarkChart(
                     }
 
                     if *metrics_expanded.read() {
-                        div { style: "margin-top: 0.5rem;",
-                            // Table header
-                            div { style: "{metrics_table_header_style(dark)}",
-                                span { style: "flex: 2;", "Variant" }
-                                span { style: "flex: 1; text-align: right;", "From" }
-                                span { style: "flex: 1; text-align: right;", "To" }
-                                span { style: "flex: 1; text-align: right;", "Change" }
-                            }
+                        {
+                            // Sort the metrics comparison data
+                            let current_sort_col = *sort_column.read();
+                            let is_ascending = *sort_ascending.read();
+                            let mut sorted_metrics = metrics_comparison.clone();
+                            sorted_metrics.sort_by(|a, b| {
+                                let cmp = match current_sort_col {
+                                    MetricsSortColumn::Variant => a.0.cmp(&b.0),
+                                    MetricsSortColumn::From => {
+                                        let a_val = a.1.unwrap_or(f64::MAX);
+                                        let b_val = b.1.unwrap_or(f64::MAX);
+                                        a_val.partial_cmp(&b_val).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                    MetricsSortColumn::To => {
+                                        a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                    MetricsSortColumn::Change => {
+                                        a.3.partial_cmp(&b.3).unwrap_or(std::cmp::Ordering::Equal)
+                                    }
+                                };
+                                if is_ascending { cmp } else { cmp.reverse() }
+                            });
 
-                            // Table rows
-                            for (test_name, from_value, to_value, change_pct, color) in metrics_comparison.iter() {
-                                {
-                                    let pct_color = change_color(dark, *change_pct);
-                                    rsx! {
-                                        div { style: "{metrics_table_row_style(dark)}",
-                                            div { style: "flex: 2; display: flex; align-items: center; gap: 0.4rem;",
-                                                span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
-                                                span { "{test_name}" }
-                                            }
-                                            span {
-                                                style: "flex: 1; text-align: right; {muted_style(dark)}",
-                                                {
-                                                    match from_value {
-                                                        Some(v) => format!("{:.2}", v),
-                                                        None => "—".to_string(),
+                            // Helper to get sort indicator
+                            let sort_indicator = |col: MetricsSortColumn| -> &'static str {
+                                if current_sort_col == col {
+                                    if is_ascending { " ▲" } else { " ▼" }
+                                } else {
+                                    ""
+                                }
+                            };
+
+                            rsx! {
+                                div { style: "margin-top: 0.5rem;",
+                                    // Table header (clickable)
+                                    div { style: "{metrics_table_header_style(dark)}",
+                                        span {
+                                            style: "flex: 2; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::Variant {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::Variant);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "Variant{sort_indicator(MetricsSortColumn::Variant)}"
+                                        }
+                                        span {
+                                            style: "flex: 1; text-align: right; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::From {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::From);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "From{sort_indicator(MetricsSortColumn::From)}"
+                                        }
+                                        span {
+                                            style: "flex: 1; text-align: right; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::To {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::To);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "To{sort_indicator(MetricsSortColumn::To)}"
+                                        }
+                                        span {
+                                            style: "flex: 1; text-align: right; cursor: pointer; user-select: none;",
+                                            onclick: move |_| {
+                                                let current_col = *sort_column.read();
+                                                let current_asc = *sort_ascending.read();
+                                                if current_col == MetricsSortColumn::Change {
+                                                    sort_ascending.set(!current_asc);
+                                                } else {
+                                                    sort_column.set(MetricsSortColumn::Change);
+                                                    sort_ascending.set(true);
+                                                }
+                                            },
+                                            "Change{sort_indicator(MetricsSortColumn::Change)}"
+                                        }
+                                    }
+
+                                    // Table rows
+                                    for (test_name, from_value, to_value, change_pct, color) in sorted_metrics.iter() {
+                                        {
+                                            let pct_color = change_color(dark, *change_pct);
+                                            rsx! {
+                                                div { style: "{metrics_table_row_style(dark)}",
+                                                    div { style: "flex: 2; display: flex; align-items: center; gap: 0.4rem;",
+                                                        span { style: "width: 8px; height: 8px; border-radius: 50%; background: {color};" }
+                                                        span { "{test_name}" }
+                                                    }
+                                                    span {
+                                                        style: "flex: 1; text-align: right; {muted_style(dark)}",
+                                                        {
+                                                            match from_value {
+                                                                Some(v) => format!("{:.2}", v),
+                                                                None => "—".to_string(),
+                                                            }
+                                                        }
+                                                    }
+                                                    span {
+                                                        style: "flex: 1; text-align: right;",
+                                                        "{to_value:.2}"
+                                                    }
+                                                    span {
+                                                        style: "flex: 1; text-align: right; font-weight: 500; color: {pct_color};",
+                                                        "{format_change(*change_pct)}"
                                                     }
                                                 }
-                                            }
-                                            span {
-                                                style: "flex: 1; text-align: right;",
-                                                "{to_value:.2}"
-                                            }
-                                            span {
-                                                style: "flex: 1; text-align: right; font-weight: 500; color: {pct_color};",
-                                                "{format_change(*change_pct)}"
                                             }
                                         }
                                     }
@@ -1066,36 +1172,60 @@ fn BenchmarkChart(
 fn calculate_metrics_comparison(
     data_points: &[BenchmarkDataPoint],
     test_names: &[String],
-    from_idx: Option<usize>,
-    to_idx: Option<usize>,
+    chart_commits: &[String],
+    from_commit_id: Option<&str>,
+    to_commit_id: Option<&str>,
     dark: bool,
 ) -> Vec<(String, Option<f64>, f64, f64, String)> {
     let colors = chart_colors(dark);
     let mut result = Vec::new();
 
+    // Build lookup map: (test_name, commit_id) -> value
+    let mut value_map: HashMap<(&str, &str), f64> = HashMap::new();
+    for point in data_points {
+        value_map.insert((&point.test_name, &point.commit_id), point.value);
+    }
+
     for (idx, test_name) in test_names.iter().enumerate() {
-        let test_points: Vec<_> = data_points
-            .iter()
-            .filter(|p| p.test_name == *test_name)
-            .collect();
-
-        if test_points.is_empty() {
-            continue;
-        }
-
-        // Get from and to values using indices
-        let (from_value, to_value) = match (from_idx, to_idx) {
-            (Some(from_i), Some(to_i)) => {
-                let from_val = test_points.get(from_i).map(|p| p.value);
-                let to_val = test_points.get(to_i).map(|p| p.value);
+        // Get from and to values using commit IDs
+        let (from_value, to_value) = match (from_commit_id, to_commit_id) {
+            (Some(from_cid), Some(to_cid)) => {
+                let from_val = value_map.get(&(test_name.as_str(), from_cid)).copied();
+                let to_val = value_map.get(&(test_name.as_str(), to_cid)).copied();
+                (from_val, to_val)
+            }
+            (None, Some(to_cid)) => {
+                // Only "to" is set - find the previous commit for this test
+                let to_val = value_map.get(&(test_name.as_str(), to_cid)).copied();
+                // Find all commits that have data for this test
+                let commits_with_data: Vec<&String> = chart_commits
+                    .iter()
+                    .filter(|c| value_map.contains_key(&(test_name.as_str(), c.as_str())))
+                    .collect();
+                // Find position of to_cid and get previous
+                let to_pos = commits_with_data.iter().position(|c| c.as_str() == to_cid);
+                let from_val = to_pos
+                    .and_then(|pos| if pos > 0 { commits_with_data.get(pos - 1) } else { None })
+                    .and_then(|prev_cid| value_map.get(&(test_name.as_str(), prev_cid.as_str())).copied());
                 (from_val, to_val)
             }
             _ => {
-                // Default to comparing last two if we have enough data
-                if test_points.len() >= 2 {
-                    let prev = test_points.get(test_points.len() - 2).map(|p| p.value);
-                    let curr = test_points.last().map(|p| p.value);
+                // Default to comparing last two commits that have data for this test
+                let commits_with_data: Vec<&String> = chart_commits
+                    .iter()
+                    .filter(|c| value_map.contains_key(&(test_name.as_str(), c.as_str())))
+                    .collect();
+                if commits_with_data.len() >= 2 {
+                    let prev_cid = commits_with_data[commits_with_data.len() - 2];
+                    let curr_cid = commits_with_data[commits_with_data.len() - 1];
+                    let prev = value_map.get(&(test_name.as_str(), prev_cid.as_str())).copied();
+                    let curr = value_map.get(&(test_name.as_str(), curr_cid.as_str())).copied();
                     (prev, curr)
+                } else if commits_with_data.len() == 1 {
+                    // New benchmark with only one data point - show it with no "from"
+                    let curr_cid = commits_with_data[0];
+                    let curr = value_map.get(&(test_name.as_str(), curr_cid.as_str())).copied();
+                    (None, curr)
                 } else {
                     (None, None)
                 }
@@ -1254,7 +1384,7 @@ fn ChartSvg(
                     if !points.is_empty() {
                         {
                             let color = colors[idx % colors.len()];
-                            let path = generate_line_path_v2(points, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
+                            let path = generate_line_path_v2(points, &chart_commits, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
                             rsx! {
                                 path {
                                     key: "{test_name}-line",
@@ -1264,13 +1394,15 @@ fn ChartSvg(
                                     "stroke-width": "2",
                                     style: "pointer-events: none;"
                                 }
-                                for (i, (_, value)) in points.iter().enumerate() {
+                                for (commit_id, value) in points.iter() {
                                     {
-                                        let x = padding_left + (chart_width - padding_left - padding_right) * (i as f64 / (points.len().max(1) - 1).max(1) as f64);
+                                        // Find commit position in chart_commits for correct x placement
+                                        let commit_pos = chart_commits.iter().position(|c| c == commit_id).unwrap_or(0);
+                                        let x = padding_left + (chart_width - padding_left - padding_right) * (commit_pos as f64 / (num_commits.max(1) - 1).max(1) as f64);
                                         let y = padding_top + (chart_height - padding_top - padding_bottom) * (1.0 - value / max_value.max(1.0));
                                         rsx! {
                                             circle {
-                                                key: "{test_name}-point-{i}",
+                                                key: "{test_name}-point-{commit_id}",
                                                 cx: "{x}",
                                                 cy: "{y}",
                                                 r: "5",
@@ -1376,6 +1508,7 @@ fn ChartSvg(
 
 fn generate_line_path_v2(
     points: &[(String, f64)],
+    chart_commits: &[String],
     max_value: f64,
     width: f64,
     height: f64,
@@ -1384,23 +1517,28 @@ fn generate_line_path_v2(
     padding_top: f64,
     padding_bottom: f64,
 ) -> String {
-    if points.is_empty() {
+    if points.is_empty() || chart_commits.is_empty() {
         return String::new();
     }
 
     let mut path = String::new();
-    let n = points.len().max(1);
+    let num_commits = chart_commits.len();
     let chart_width = width - padding_left - padding_right;
     let chart_height = height - padding_top - padding_bottom;
 
-    for (i, (_, value)) in points.iter().enumerate() {
-        let x = padding_left + chart_width * (i as f64 / (n - 1).max(1) as f64);
-        let y = padding_top + chart_height * (1.0 - value / max_value.max(1.0));
+    let mut first = true;
+    for (commit_id, value) in points.iter() {
+        // Find this commit's position in the chart_commits list
+        if let Some(commit_pos) = chart_commits.iter().position(|c| c == commit_id) {
+            let x = padding_left + chart_width * (commit_pos as f64 / (num_commits - 1).max(1) as f64);
+            let y = padding_top + chart_height * (1.0 - value / max_value.max(1.0));
 
-        if i == 0 {
-            path.push_str(&format!("M {:.1} {:.1}", x, y));
-        } else {
-            path.push_str(&format!(" L {:.1} {:.1}", x, y));
+            if first {
+                path.push_str(&format!("M {:.1} {:.1}", x, y));
+                first = false;
+            } else {
+                path.push_str(&format!(" L {:.1} {:.1}", x, y));
+            }
         }
     }
 
