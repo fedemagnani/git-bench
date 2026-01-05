@@ -1048,7 +1048,7 @@ fn BenchmarkChart(
                             href: "https://github.com/{username}",
                             target: "_blank",
                             style: "{commit_hash_link_style(dark)}",
-                            "{run.author}"
+                            "{username}"
                         }
                     } else {
                         "{run.author}"
