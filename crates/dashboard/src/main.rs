@@ -281,6 +281,22 @@ fn App() -> Element {
     let dark = *dark_mode.read();
     let body_bg = if dark { "#0d1117" } else { "#ffffff" };
 
+    // Extract repo_url from loaded data, or infer from commit URLs
+    let repo_url = data.read().as_ref().and_then(|d| {
+        d.repo_url.clone().or_else(|| {
+            // Try to extract from commit URL: https://github.com/owner/repo/commit/...
+            d.entries
+                .values()
+                .next()
+                .and_then(|runs| runs.first())
+                .and_then(|run| run.commit.url.as_ref())
+                .and_then(|url| {
+                    // Extract base repo URL from commit URL
+                    url.find("/commit/").map(|pos| url[..pos].to_string())
+                })
+        })
+    });
+
     rsx! {
         // Global style to fix html/body background
         style {
@@ -288,7 +304,7 @@ fn App() -> Element {
              #main {{ min-height: 100vh; }}"
         }
         div { style: "{app_style(dark)}",
-            Header {}
+            Header { repo_url: repo_url }
 
             div { style: "display: flex; flex: 1; overflow: hidden;",
                 if *loading.read() {
@@ -316,17 +332,38 @@ fn App() -> Element {
 }
 
 #[component]
-fn Header() -> Element {
+fn Header(repo_url: Option<String>) -> Element {
     let ThemeCtx(mut dark_mode) = use_context::<ThemeCtx>();
     let BenchNameCtx(bench_name) = use_context::<BenchNameCtx>();
     let dark = *dark_mode.read();
     let name = bench_name.read();
+    let mut is_hovered = use_signal(|| false);
+
+    let link_style = if *is_hovered.read() {
+        "color: #58a6ff; text-decoration: none; cursor: pointer;"
+    } else {
+        "color: inherit; text-decoration: none; cursor: pointer;"
+    };
 
     rsx! {
         header { style: "{header_style(dark)}",
             div { style: "display: flex; align-items: center; gap: 0.5rem;",
                 span { style: "font-size: 1.2rem;", "⑂" }
-                h1 { style: "{title_style(dark)}", "{name} benchmarks" }
+                h1 { style: "{title_style(dark)}",
+                    if let Some(ref url) = repo_url {
+                        a {
+                            href: "{url}",
+                            target: "_blank",
+                            style: "{link_style}",
+                            onmouseenter: move |_| is_hovered.set(true),
+                            onmouseleave: move |_| is_hovered.set(false),
+                            "{name}"
+                        }
+                    } else {
+                        "{name}"
+                    }
+                    " benchmarks"
+                }
             }
             button {
                 style: "{toggle_btn_style(dark)}",
@@ -846,6 +883,8 @@ fn BenchmarkChart(
     // Track sort column and direction for metrics table
     let mut sort_column = use_signal(|| MetricsSortColumn::To);
     let mut sort_ascending = use_signal(|| true);
+    // Track hidden benchmarks (toggled off via legend)
+    let mut hidden_benchmarks: Signal<HashSet<String>> = use_signal(|| HashSet::new());
 
     // Build series data
     let mut series: BTreeMap<String, Vec<(String, f64)>> = BTreeMap::new();
@@ -857,6 +896,20 @@ fn BenchmarkChart(
     }
 
     let test_names: Vec<String> = series.keys().cloned().collect();
+
+    // Filter visible series based on hidden_benchmarks
+    let hidden = hidden_benchmarks.read();
+    let visible_series: BTreeMap<String, Vec<(String, f64)>> = series
+        .iter()
+        .filter(|(name, _)| !hidden.contains(*name))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    let visible_test_names: Vec<String> = test_names
+        .iter()
+        .filter(|name| !hidden.contains(*name))
+        .cloned()
+        .collect();
+    drop(hidden);
     let unit = data_points
         .first()
         .map(|p| p.unit.clone())
@@ -869,7 +922,8 @@ fn BenchmarkChart(
         .map(|(idx, name)| (name.clone(), colors[idx % colors.len()].to_string()))
         .collect();
 
-    let max_value = series
+    // Calculate max_value based on VISIBLE series only (for proper chart scaling)
+    let max_value = visible_series
         .values()
         .flat_map(|points| points.iter().map(|(_, v)| *v))
         .fold(0.0f64, |a, b| a.max(b));
@@ -898,12 +952,14 @@ fn BenchmarkChart(
         points_by_test_and_commit.insert((&point.test_name, &point.commit_id), point);
     }
 
-    // Build tooltip for each commit in chart_commits order
+    // Build tooltip for each commit in chart_commits order (only visible benchmarks)
+    let hidden_for_tooltip = hidden_benchmarks.read();
     let commits_tooltip: Vec<CommitTooltipData> = chart_commits
         .iter()
         .map(|commit_id| {
             let mut values: Vec<(String, f64, String, String)> = test_names
                 .iter()
+                .filter(|name| !hidden_for_tooltip.contains(*name))
                 .filter_map(|test_name| {
                     points_by_test_and_commit
                         .get(&(test_name.as_str(), commit_id.as_str()))
@@ -927,6 +983,7 @@ fn BenchmarkChart(
             }
         })
         .collect();
+    drop(hidden_for_tooltip);
 
     // Get last run info for header
     let last_run = runs_info.last().cloned();
@@ -949,11 +1006,11 @@ fn BenchmarkChart(
     });
     let metrics_comparison = calculate_metrics_comparison(
         &data_points,
-        &test_names,
+        &visible_test_names, // Use visible_test_names to exclude hidden benchmarks
         &chart_commits,
         from_commit_id.as_deref(),
         to_commit_id.as_deref(),
-        dark,
+        &color_map, // Use color_map for stable colors
     );
 
     // Map selection indices to chart positions
@@ -991,9 +1048,10 @@ fn BenchmarkChart(
                 }
             }
 
-            // Chart SVG
+            // Chart SVG (using visible_series for filtered display)
             ChartSvg {
-                series: series.clone(),
+                series: visible_series.clone(),
+                color_map: color_map.clone(),
                 max_value: max_value,
                 chart_commits: chart_commits.clone(),
                 commits_tooltip: commits_tooltip.clone(),
@@ -1004,15 +1062,28 @@ fn BenchmarkChart(
                 chart_width: 600.0
             }
 
-            // Legend
+            // Legend (clickable to toggle visibility)
             div { style: "{chart_legend_style(dark)}",
                 for (idx, test_name) in test_names.iter().enumerate() {
                     {
                         let legend_color = colors[idx % colors.len()];
+                        let test_name_clone = test_name.clone();
+                        let is_hidden = hidden_benchmarks.read().contains(test_name);
+                        let opacity = if is_hidden { "0.3" } else { "1.0" };
+                        let text_decoration = if is_hidden { "line-through" } else { "none" };
                         rsx! {
-                            div { style: "display: flex; align-items: center; gap: 0.4rem;",
+                            div {
+                                style: "display: flex; align-items: center; gap: 0.4rem; cursor: pointer; opacity: {opacity}; user-select: none;",
+                                onclick: move |_| {
+                                    let mut hidden = hidden_benchmarks.write();
+                                    if hidden.contains(&test_name_clone) {
+                                        hidden.remove(&test_name_clone);
+                                    } else {
+                                        hidden.insert(test_name_clone.clone());
+                                    }
+                                },
                                 span { style: "width: 12px; height: 12px; border-radius: 50%; background: {legend_color};" }
-                                span { "{test_name}" }
+                                span { style: "text-decoration: {text_decoration};", "{test_name}" }
                             }
                         }
                     }
@@ -1175,9 +1246,8 @@ fn calculate_metrics_comparison(
     chart_commits: &[String],
     from_commit_id: Option<&str>,
     to_commit_id: Option<&str>,
-    dark: bool,
+    color_map: &HashMap<String, String>,
 ) -> Vec<(String, Option<f64>, f64, f64, String)> {
-    let colors = chart_colors(dark);
     let mut result = Vec::new();
 
     // Build lookup map: (test_name, commit_id) -> value
@@ -1186,7 +1256,7 @@ fn calculate_metrics_comparison(
         value_map.insert((&point.test_name, &point.commit_id), point.value);
     }
 
-    for (idx, test_name) in test_names.iter().enumerate() {
+    for test_name in test_names.iter() {
         // Get from and to values using commit IDs
         let (from_value, to_value) = match (from_commit_id, to_commit_id) {
             (Some(from_cid), Some(to_cid)) => {
@@ -1205,8 +1275,18 @@ fn calculate_metrics_comparison(
                 // Find position of to_cid and get previous
                 let to_pos = commits_with_data.iter().position(|c| c.as_str() == to_cid);
                 let from_val = to_pos
-                    .and_then(|pos| if pos > 0 { commits_with_data.get(pos - 1) } else { None })
-                    .and_then(|prev_cid| value_map.get(&(test_name.as_str(), prev_cid.as_str())).copied());
+                    .and_then(|pos| {
+                        if pos > 0 {
+                            commits_with_data.get(pos - 1)
+                        } else {
+                            None
+                        }
+                    })
+                    .and_then(|prev_cid| {
+                        value_map
+                            .get(&(test_name.as_str(), prev_cid.as_str()))
+                            .copied()
+                    });
                 (from_val, to_val)
             }
             _ => {
@@ -1218,13 +1298,19 @@ fn calculate_metrics_comparison(
                 if commits_with_data.len() >= 2 {
                     let prev_cid = commits_with_data[commits_with_data.len() - 2];
                     let curr_cid = commits_with_data[commits_with_data.len() - 1];
-                    let prev = value_map.get(&(test_name.as_str(), prev_cid.as_str())).copied();
-                    let curr = value_map.get(&(test_name.as_str(), curr_cid.as_str())).copied();
+                    let prev = value_map
+                        .get(&(test_name.as_str(), prev_cid.as_str()))
+                        .copied();
+                    let curr = value_map
+                        .get(&(test_name.as_str(), curr_cid.as_str()))
+                        .copied();
                     (prev, curr)
                 } else if commits_with_data.len() == 1 {
                     // New benchmark with only one data point - show it with no "from"
                     let curr_cid = commits_with_data[0];
-                    let curr = value_map.get(&(test_name.as_str(), curr_cid.as_str())).copied();
+                    let curr = value_map
+                        .get(&(test_name.as_str(), curr_cid.as_str()))
+                        .copied();
                     (None, curr)
                 } else {
                     (None, None)
@@ -1237,7 +1323,10 @@ fn calculate_metrics_comparison(
                 Some(from_val) if from_val != 0.0 => ((to_val - from_val) / from_val) * 100.0,
                 _ => 0.0,
             };
-            let color = colors[idx % colors.len()].to_string();
+            let color = color_map
+                .get(test_name)
+                .cloned()
+                .unwrap_or_else(|| "#888888".to_string());
             result.push((test_name.clone(), from_value, to_val, change_pct, color));
         }
     }
@@ -1259,6 +1348,7 @@ fn format_change(change_pct: f64) -> String {
 #[component]
 fn ChartSvg(
     series: BTreeMap<String, Vec<(String, f64)>>,
+    color_map: HashMap<String, String>,
     max_value: f64,
     chart_commits: Vec<String>,
     commits_tooltip: Vec<CommitTooltipData>,
@@ -1270,7 +1360,7 @@ fn ChartSvg(
 ) -> Element {
     let ThemeCtx(dark_mode) = use_context::<ThemeCtx>();
     let dark = *dark_mode.read();
-    let colors = chart_colors(dark);
+    let _colors = chart_colors(dark); // Keep for fallback
 
     let padding_left = 50.0;
     let padding_right = 20.0;
@@ -1380,10 +1470,10 @@ fn ChartSvg(
                 }
 
                 // Data lines and points
-                for (idx, (test_name, points)) in series.iter().enumerate() {
+                for (_idx, (test_name, points)) in series.iter().enumerate() {
                     if !points.is_empty() {
                         {
-                            let color = colors[idx % colors.len()];
+                            let color = color_map.get(test_name).cloned().unwrap_or_else(|| "#888888".to_string());
                             let path = generate_line_path_v2(points, &chart_commits, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
                             rsx! {
                                 path {
@@ -1530,7 +1620,8 @@ fn generate_line_path_v2(
     for (commit_id, value) in points.iter() {
         // Find this commit's position in the chart_commits list
         if let Some(commit_pos) = chart_commits.iter().position(|c| c == commit_id) {
-            let x = padding_left + chart_width * (commit_pos as f64 / (num_commits - 1).max(1) as f64);
+            let x =
+                padding_left + chart_width * (commit_pos as f64 / (num_commits - 1).max(1) as f64);
             let y = padding_top + chart_height * (1.0 - value / max_value.max(1.0));
 
             if first {
