@@ -885,6 +885,8 @@ fn BenchmarkChart(
     let mut sort_ascending = use_signal(|| true);
     // Track hidden benchmarks (toggled off via legend)
     let mut hidden_benchmarks: Signal<HashSet<String>> = use_signal(|| HashSet::new());
+    // Track log scale mode (default: true for log scale)
+    let mut use_log_scale = use_signal(|| true);
 
     // Build series data
     let mut series: BTreeMap<String, Vec<(String, f64)>> = BTreeMap::new();
@@ -922,11 +924,17 @@ fn BenchmarkChart(
         .map(|(idx, name)| (name.clone(), colors[idx % colors.len()].to_string()))
         .collect();
 
-    // Calculate max_value based on VISIBLE series only (for proper chart scaling)
+    // Calculate max_value and min_value based on VISIBLE series only (for proper chart scaling)
     let max_value = visible_series
         .values()
         .flat_map(|points| points.iter().map(|(_, v)| *v))
         .fold(0.0f64, |a, b| a.max(b));
+    // For log scale, we need a positive min value (exclude zeros)
+    let min_value = visible_series
+        .values()
+        .flat_map(|points| points.iter().map(|(_, v)| *v))
+        .filter(|v| *v > 0.0)
+        .fold(f64::MAX, |a, b| a.min(b));
 
     // Get unique commits in order for this chart
     let chart_commits: Vec<String> = {
@@ -1053,6 +1061,8 @@ fn BenchmarkChart(
                 series: visible_series.clone(),
                 color_map: color_map.clone(),
                 max_value: max_value,
+                min_value: min_value,
+                use_log_scale: *use_log_scale.read(),
                 chart_commits: chart_commits.clone(),
                 commits_tooltip: commits_tooltip.clone(),
                 hovered_commit: hovered_commit,
@@ -1062,9 +1072,11 @@ fn BenchmarkChart(
                 chart_width: 600.0
             }
 
-            // Legend (clickable to toggle visibility)
-            div { style: "{chart_legend_style(dark)}",
-                for (idx, test_name) in test_names.iter().enumerate() {
+            // Legend and scale toggle
+            div { style: "{chart_legend_style(dark)} justify-content: space-between;",
+                // Legend items (clickable to toggle visibility)
+                div { style: "display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;",
+                    for (idx, test_name) in test_names.iter().enumerate() {
                     {
                         let legend_color = colors[idx % colors.len()];
                         let test_name_clone = test_name.clone();
@@ -1084,6 +1096,47 @@ fn BenchmarkChart(
                                 },
                                 span { style: "width: 12px; height: 12px; border-radius: 50%; background: {legend_color};" }
                                 span { style: "text-decoration: {text_decoration};", "{test_name}" }
+                            }
+                        }
+                    }
+                }
+                }
+                // Scale toggle - segmented control (using accent colors)
+                {
+                    let border_color = if dark { "#30363d" } else { "#d0d7de" };
+                    let inactive_bg = if dark { "#21262d" } else { "#f6f8fa" };
+                    let active_bg = if dark { "#00ffff" } else { "#0066cc" };
+                    let inactive_text = if dark { "#8b949e" } else { "#57606a" };
+                    let active_text = if dark { "#0d1117" } else { "#ffffff" };
+                    let is_log = *use_log_scale.read();
+
+                    let log_bg = if is_log { active_bg } else { inactive_bg };
+                    let log_text = if is_log { active_text } else { inactive_text };
+                    let log_weight = if is_log { "600" } else { "400" };
+                    let linear_bg = if !is_log { active_bg } else { inactive_bg };
+                    let linear_text = if !is_log { active_text } else { inactive_text };
+                    let linear_weight = if !is_log { "600" } else { "400" };
+
+                    rsx! {
+                        div {
+                            style: "display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;",
+                            span { style: "color: {inactive_text};", "scale:" }
+                            div {
+                                style: "display: flex; border: 1px solid {border_color}; border-radius: 4px; overflow: hidden;",
+                                button {
+                                    style: "padding: 0.2rem 0.5rem; border: none; cursor: pointer; \
+                                            background: {log_bg}; color: {log_text}; \
+                                            font-size: 0.7rem; font-weight: {log_weight};",
+                                    onclick: move |_| use_log_scale.set(true),
+                                    "log"
+                                }
+                                button {
+                                    style: "padding: 0.2rem 0.5rem; border: none; border-left: 1px solid {border_color}; cursor: pointer; \
+                                            background: {linear_bg}; color: {linear_text}; \
+                                            font-size: 0.7rem; font-weight: {linear_weight};",
+                                    onclick: move |_| use_log_scale.set(false),
+                                    "linear"
+                                }
                             }
                         }
                     }
@@ -1350,6 +1403,8 @@ fn ChartSvg(
     series: BTreeMap<String, Vec<(String, f64)>>,
     color_map: HashMap<String, String>,
     max_value: f64,
+    min_value: f64,
+    use_log_scale: bool,
     chart_commits: Vec<String>,
     commits_tooltip: Vec<CommitTooltipData>,
     mut hovered_commit: Signal<Option<usize>>,
@@ -1373,6 +1428,44 @@ fn ChartSvg(
 
     let padding_ratio_left = padding_left / chart_width;
     let padding_ratio_right = padding_right / chart_width;
+
+    // Log scale helpers
+    let safe_min = if min_value > 0.0 && min_value < f64::MAX {
+        min_value
+    } else {
+        0.1
+    };
+    let safe_max = if max_value > 0.0 { max_value } else { 1.0 };
+    let log_min = safe_min.log10();
+    let log_max = safe_max.log10();
+    let log_range = if log_max > log_min {
+        log_max - log_min
+    } else {
+        1.0
+    };
+
+    // Helper function to convert value to Y position
+    let value_to_y = |value: f64| -> f64 {
+        let chart_area_height = chart_height - padding_top - padding_bottom;
+        if use_log_scale && value > 0.0 {
+            let log_val = value.log10();
+            let normalized = (log_val - log_min) / log_range;
+            padding_top + chart_area_height * (1.0 - normalized)
+        } else {
+            let normalized = value / safe_max;
+            padding_top + chart_area_height * (1.0 - normalized)
+        }
+    };
+
+    // Helper function to get Y-axis label value for position i (0-4, top to bottom)
+    let y_axis_value = |i: usize| -> f64 {
+        if use_log_scale {
+            let log_val = log_max - (i as f64 / 4.0) * log_range;
+            10.0_f64.powf(log_val)
+        } else {
+            safe_max * (1.0 - i as f64 / 4.0)
+        }
+    };
 
     let mut chart_div_width = use_signal(|| 0.0f64);
 
@@ -1438,14 +1531,19 @@ fn ChartSvg(
 
                 // Y-axis labels
                 for i in 0..5 {
-                    text {
-                        x: "{padding_left - 8.0}",
-                        y: "{padding_top + (chart_height - padding_top - padding_bottom) * (i as f64 / 4.0) + 4.0}",
-                        fill: "{axis_c}",
-                        "font-size": "10",
-                        "text-anchor": "end",
-                        style: "pointer-events: none;",
-                        "{format_value(max_value * (1.0 - i as f64 / 4.0))}"
+                    {
+                        let label_value = y_axis_value(i);
+                        rsx! {
+                            text {
+                                x: "{padding_left - 8.0}",
+                                y: "{padding_top + (chart_height - padding_top - padding_bottom) * (i as f64 / 4.0) + 4.0}",
+                                fill: "{axis_c}",
+                                "font-size": "10",
+                                "text-anchor": "end",
+                                style: "pointer-events: none;",
+                                "{format_value(label_value)}"
+                            }
+                        }
                     }
                 }
 
@@ -1477,7 +1575,7 @@ fn ChartSvg(
                     if !points.is_empty() {
                         {
                             let color = color_map.get(test_name).cloned().unwrap_or_else(|| "#888888".to_string());
-                            let path = generate_line_path_v2(points, &chart_commits, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
+                            let path = generate_line_path_v2(points, &chart_commits, max_value, min_value, use_log_scale, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
                             rsx! {
                                 path {
                                     key: "{test_name}-line",
@@ -1492,7 +1590,7 @@ fn ChartSvg(
                                         // Find commit position in chart_commits for correct x placement
                                         let commit_pos = chart_commits.iter().position(|c| c == commit_id).unwrap_or(0);
                                         let x = padding_left + (chart_width - padding_left - padding_right) * (commit_pos as f64 / (num_commits.max(1) - 1).max(1) as f64);
-                                        let y = padding_top + (chart_height - padding_top - padding_bottom) * (1.0 - value / max_value.max(1.0));
+                                        let y = value_to_y(*value);
                                         rsx! {
                                             circle {
                                                 key: "{test_name}-point-{commit_id}",
@@ -1604,6 +1702,8 @@ fn generate_line_path_v2(
     points: &[(String, f64)],
     chart_commits: &[String],
     max_value: f64,
+    min_value: f64,
+    use_log_scale: bool,
     width: f64,
     height: f64,
     padding_left: f64,
@@ -1617,16 +1717,42 @@ fn generate_line_path_v2(
 
     let mut path = String::new();
     let num_commits = chart_commits.len();
-    let chart_width = width - padding_left - padding_right;
-    let chart_height = height - padding_top - padding_bottom;
+    let chart_width_inner = width - padding_left - padding_right;
+    let chart_height_inner = height - padding_top - padding_bottom;
+
+    // Log scale helpers
+    let safe_min = if min_value > 0.0 && min_value < f64::MAX {
+        min_value
+    } else {
+        0.1
+    };
+    let safe_max = if max_value > 0.0 { max_value } else { 1.0 };
+    let log_min = safe_min.log10();
+    let log_max = safe_max.log10();
+    let log_range = if log_max > log_min {
+        log_max - log_min
+    } else {
+        1.0
+    };
+
+    let value_to_y = |value: f64| -> f64 {
+        if use_log_scale && value > 0.0 {
+            let log_val = value.log10();
+            let normalized = (log_val - log_min) / log_range;
+            padding_top + chart_height_inner * (1.0 - normalized)
+        } else {
+            let normalized = value / safe_max;
+            padding_top + chart_height_inner * (1.0 - normalized)
+        }
+    };
 
     let mut first = true;
     for (commit_id, value) in points.iter() {
         // Find this commit's position in the chart_commits list
         if let Some(commit_pos) = chart_commits.iter().position(|c| c == commit_id) {
-            let x =
-                padding_left + chart_width * (commit_pos as f64 / (num_commits - 1).max(1) as f64);
-            let y = padding_top + chart_height * (1.0 - value / max_value.max(1.0));
+            let x = padding_left
+                + chart_width_inner * (commit_pos as f64 / (num_commits - 1).max(1) as f64);
+            let y = value_to_y(*value);
 
             if first {
                 path.push_str(&format!("M {:.1} {:.1}", x, y));
