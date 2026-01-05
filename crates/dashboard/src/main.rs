@@ -281,6 +281,22 @@ fn App() -> Element {
     let dark = *dark_mode.read();
     let body_bg = if dark { "#0d1117" } else { "#ffffff" };
 
+    // Extract repo_url from loaded data, or infer from commit URLs
+    let repo_url = data.read().as_ref().and_then(|d| {
+        d.repo_url.clone().or_else(|| {
+            // Try to extract from commit URL: https://github.com/owner/repo/commit/...
+            d.entries
+                .values()
+                .next()
+                .and_then(|runs| runs.first())
+                .and_then(|run| run.commit.url.as_ref())
+                .and_then(|url| {
+                    // Extract base repo URL from commit URL
+                    url.find("/commit/").map(|pos| url[..pos].to_string())
+                })
+        })
+    });
+
     rsx! {
         // Global style to fix html/body background
         style {
@@ -288,7 +304,7 @@ fn App() -> Element {
              #main {{ min-height: 100vh; }}"
         }
         div { style: "{app_style(dark)}",
-            Header {}
+            Header { repo_url: repo_url }
 
             div { style: "display: flex; flex: 1; overflow: hidden;",
                 if *loading.read() {
@@ -316,17 +332,38 @@ fn App() -> Element {
 }
 
 #[component]
-fn Header() -> Element {
+fn Header(repo_url: Option<String>) -> Element {
     let ThemeCtx(mut dark_mode) = use_context::<ThemeCtx>();
     let BenchNameCtx(bench_name) = use_context::<BenchNameCtx>();
     let dark = *dark_mode.read();
     let name = bench_name.read();
+    let mut is_hovered = use_signal(|| false);
+
+    let link_style = if *is_hovered.read() {
+        "color: #58a6ff; text-decoration: none; cursor: pointer;"
+    } else {
+        "color: inherit; text-decoration: none; cursor: pointer;"
+    };
 
     rsx! {
         header { style: "{header_style(dark)}",
             div { style: "display: flex; align-items: center; gap: 0.5rem;",
                 span { style: "font-size: 1.2rem;", "⑂" }
-                h1 { style: "{title_style(dark)}", "{name} benchmarks" }
+                h1 { style: "{title_style(dark)}",
+                    if let Some(ref url) = repo_url {
+                        a {
+                            href: "{url}",
+                            target: "_blank",
+                            style: "{link_style}",
+                            onmouseenter: move |_| is_hovered.set(true),
+                            onmouseleave: move |_| is_hovered.set(false),
+                            "{name}"
+                        }
+                    } else {
+                        "{name}"
+                    }
+                    " benchmarks"
+                }
             }
             button {
                 style: "{toggle_btn_style(dark)}",
