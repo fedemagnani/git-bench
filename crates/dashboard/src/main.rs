@@ -1254,7 +1254,7 @@ fn ChartSvg(
                     if !points.is_empty() {
                         {
                             let color = colors[idx % colors.len()];
-                            let path = generate_line_path_v2(points, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
+                            let path = generate_line_path_v2(points, &chart_commits, max_value, chart_width, chart_height, padding_left, padding_right, padding_top, padding_bottom);
                             rsx! {
                                 path {
                                     key: "{test_name}-line",
@@ -1264,13 +1264,15 @@ fn ChartSvg(
                                     "stroke-width": "2",
                                     style: "pointer-events: none;"
                                 }
-                                for (i, (_, value)) in points.iter().enumerate() {
+                                for (commit_id, value) in points.iter() {
                                     {
-                                        let x = padding_left + (chart_width - padding_left - padding_right) * (i as f64 / (points.len().max(1) - 1).max(1) as f64);
+                                        // Find commit position in chart_commits for correct x placement
+                                        let commit_pos = chart_commits.iter().position(|c| c == commit_id).unwrap_or(0);
+                                        let x = padding_left + (chart_width - padding_left - padding_right) * (commit_pos as f64 / (num_commits.max(1) - 1).max(1) as f64);
                                         let y = padding_top + (chart_height - padding_top - padding_bottom) * (1.0 - value / max_value.max(1.0));
                                         rsx! {
                                             circle {
-                                                key: "{test_name}-point-{i}",
+                                                key: "{test_name}-point-{commit_id}",
                                                 cx: "{x}",
                                                 cy: "{y}",
                                                 r: "5",
@@ -1376,6 +1378,7 @@ fn ChartSvg(
 
 fn generate_line_path_v2(
     points: &[(String, f64)],
+    chart_commits: &[String],
     max_value: f64,
     width: f64,
     height: f64,
@@ -1384,23 +1387,28 @@ fn generate_line_path_v2(
     padding_top: f64,
     padding_bottom: f64,
 ) -> String {
-    if points.is_empty() {
+    if points.is_empty() || chart_commits.is_empty() {
         return String::new();
     }
 
     let mut path = String::new();
-    let n = points.len().max(1);
+    let num_commits = chart_commits.len();
     let chart_width = width - padding_left - padding_right;
     let chart_height = height - padding_top - padding_bottom;
 
-    for (i, (_, value)) in points.iter().enumerate() {
-        let x = padding_left + chart_width * (i as f64 / (n - 1).max(1) as f64);
-        let y = padding_top + chart_height * (1.0 - value / max_value.max(1.0));
+    let mut first = true;
+    for (commit_id, value) in points.iter() {
+        // Find this commit's position in the chart_commits list
+        if let Some(commit_pos) = chart_commits.iter().position(|c| c == commit_id) {
+            let x = padding_left + chart_width * (commit_pos as f64 / (num_commits - 1).max(1) as f64);
+            let y = padding_top + chart_height * (1.0 - value / max_value.max(1.0));
 
-        if i == 0 {
-            path.push_str(&format!("M {:.1} {:.1}", x, y));
-        } else {
-            path.push_str(&format!(" L {:.1} {:.1}", x, y));
+            if first {
+                path.push_str(&format!("M {:.1} {:.1}", x, y));
+                first = false;
+            } else {
+                path.push_str(&format!(" L {:.1} {:.1}", x, y));
+            }
         }
     }
 
